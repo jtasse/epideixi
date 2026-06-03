@@ -1,6 +1,6 @@
 # Epideixi
 
-Monorepo for learning how to organize and build a modern frontend that integrates with AWS-hosted backend services.
+Monorepo demo solution that includes React, IAM, AWS Cognito, ASP.NET Core, and PostgreSQL.
 
 ## Repository layout
 
