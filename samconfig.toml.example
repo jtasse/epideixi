@@ -1,0 +1,22 @@
+# Copy to samconfig.toml and adjust for your AWS account/region.
+version = 0.1
+
+[default.deploy.parameters]
+stack_name = "epideixi"
+# Dedicated bucket for epideixi deploy artifacts (separate from SAM CLI managed / meowlin app buckets).
+# Create once: aws s3 mb s3://jtj-epideixi-sam-artifacts --region us-east-1
+resolve_s3 = false
+s3_bucket = "jtj-epideixi-sam-artifacts"
+s3_prefix = "epideixi"
+region = "us-east-1"
+confirm_changeset = true
+capabilities = "CAPABILITY_IAM"
+parameter_overrides = "CorsAllowedOrigins=\"http://localhost:5173\""
+
+[default.build.parameters]
+cached = true
+parallel = true
+
+[default.local_start_api.parameters]
+warm_containers = "EAGER"
+env_vars = "apps/api/local-env.json"

@@ -1,0 +1,133 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Epideixi - ASP.NET Core API on Lambda with Amazon Cognito JWT auth
+
+Parameters:
+  CorsAllowedOrigins:
+    Type: String
+    Default: http://localhost:5173
+    Description: Comma-separated browser origins allowed by API Gateway CORS and the API
+
+Globals:
+  Function:
+    Timeout: 30
+    MemorySize: 512
+
+Resources:
+  UserPool:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      UserPoolName: !Sub '${AWS::StackName}-users'
+      AutoVerifiedAttributes:
+        - email
+      UsernameAttributes:
+        - email
+      Policies:
+        PasswordPolicy:
+          MinimumLength: 8
+          RequireLowercase: true
+          RequireNumbers: true
+          RequireSymbols: false
+          RequireUppercase: true
+
+  UserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      ClientName: !Sub '${AWS::StackName}-spa-client'
+      UserPoolId: !Ref UserPool
+      GenerateSecret: false
+      ExplicitAuthFlows:
+        - ALLOW_USER_SRP_AUTH
+        - ALLOW_REFRESH_TOKEN_AUTH
+        - ALLOW_USER_PASSWORD_AUTH
+      SupportedIdentityProviders:
+        - COGNITO
+      AllowedOAuthFlows:
+        - code
+        - implicit
+      AllowedOAuthScopes:
+        - openid
+        - email
+        - profile
+      AllowedOAuthFlowsUserPoolClient: true
+      CallbackURLs:
+        - http://localhost:5173
+      LogoutURLs:
+        - http://localhost:5173
+      PreventUserExistenceErrors: ENABLED
+
+  HttpApi:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      StageName: $default
+      CorsConfiguration:
+        AllowOrigins: !Split
+          - ','
+          - !Ref CorsAllowedOrigins
+        AllowMethods:
+          - GET
+          - POST
+          - PUT
+          - PATCH
+          - DELETE
+          - OPTIONS
+        AllowHeaders:
+          - Authorization
+          - Content-Type
+        MaxAge: 600
+
+  ApiFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub '${AWS::StackName}-api'
+      CodeUri: ./apps/api/
+      Handler: Epideixi.Api
+      Runtime: dotnet6
+      Architectures:
+        - x86_64
+      Environment:
+        Variables:
+          ASPNETCORE_ENVIRONMENT: Production
+          Cognito__Authority: !Sub
+            - 'https://cognito-idp.${AWS::Region}.amazonaws.com/${UserPoolId}'
+            - UserPoolId: !Ref UserPool
+          Cognito__Audience: !Ref UserPoolClient
+          Cors__AllowedOrigins: !Ref CorsAllowedOrigins
+      Events:
+        ProxyApi:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /{proxy+}
+            Method: ANY
+        RootApi:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /
+            Method: ANY
+    Metadata:
+      BuildMethod: dotnet6
+      DockerTag: dotnet6-v1
+      DockerContext: .
+      ProjectPath: ./Epideixi.Api.csproj
+
+Outputs:
+  ApiBaseUrl:
+    Description: HTTP API base URL (set VITE_API_BASE_URL to this value)
+    Value: !Sub 'https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com'
+  SwaggerUrl:
+    Description: OpenAPI/Swagger UI
+    Value: !Sub 'https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com/swagger'
+  HealthUrl:
+    Description: Public health check
+    Value: !Sub 'https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com/health'
+  CognitoUserPoolId:
+    Description: Cognito User Pool ID
+    Value: !Ref UserPool
+  CognitoUserPoolClientId:
+    Description: Cognito app client ID (JWT audience)
+    Value: !Ref UserPoolClient
+  CognitoAuthority:
+    Description: JWT authority for local appsettings
+    Value: !Sub 'https://cognito-idp.${AWS::Region}.amazonaws.com/${UserPool}'

@@ -1,0 +1,8 @@
+{
+  "ApiFunction": {
+    "ASPNETCORE_ENVIRONMENT": "Development",
+    "Cognito__Authority": "https://cognito-idp.us-east-1.amazonaws.com/REPLACE_USER_POOL_ID",
+    "Cognito__Audience": "REPLACE_APP_CLIENT_ID",
+    "Cors__AllowedOrigins": "http://localhost:5173"
+  }
+}

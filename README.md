@@ -7,29 +7,28 @@ Monorepo demo solution that includes React, IAM, AWS Cognito, ASP.NET Core, and 
 | Path | Description |
 |------|-------------|
 | `apps/web` | React SPA (Vite + TypeScript + React Router) |
+| `apps/api` | ASP.NET Core Web API (Cognito JWT, Swagger, Lambda-ready) |
+| `template.yaml` | AWS SAM template (API Lambda, HTTP API, Cognito User Pool) |
 
 ## Prerequisites
 
 - [Node.js](https://nodejs.org/) 20 or newer
+- [.NET 6 SDK](https://dotnet.microsoft.com/download/dotnet/6.0) or newer (API targets `net6.0`; .NET 8 SDK also works)
+- [AWS SAM CLI](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/install-sam-cli.html) (deploy API to Lambda)
 - npm 10+ (bundled with Node.js)
 
-## Setup
+## Frontend (`apps/web`)
 
-1. Clone the repository and install dependencies from the repo root:
+### Setup
 
-   ```bash
-   npm install
-   ```
+```bash
+npm install
+cp apps/web/.env.example apps/web/.env
+```
 
-2. Configure API environment variables for the web app:
+Edit `apps/web/.env` and set `VITE_API_BASE_URL` to your API base URL (local: `http://localhost:5080`, deployed: SAM output **ApiBaseUrl**).
 
-   ```bash
-   cp apps/web/.env.example apps/web/.env
-   ```
-
-   Edit `apps/web/.env` and set `VITE_API_BASE_URL` to your backend base URL (API Gateway, ALB, local mock, etc.).
-
-## Start the frontend (single command)
+### Start the frontend
 
 From the repository root:
 
@@ -37,9 +36,9 @@ From the repository root:
 npm run dev
 ```
 
-This starts the Vite dev server for `apps/web` (default: http://localhost:5173).
+Default: http://localhost:5173
 
-## Other commands
+### Other frontend commands
 
 | Command | Description |
 |---------|-------------|
@@ -47,20 +46,33 @@ This starts the Vite dev server for `apps/web` (default: http://localhost:5173).
 | `npm run lint` | ESLint across the web app |
 | `npm run preview` | Serve the production build locally |
 
-## Pages
+## Backend API (`apps/api`)
 
-- **Home** (`/`) — landing page; displays configured API base URL
-- **Protected** (`/protected`) — placeholder route guarded for future auth
-- **Error** (`/error`, unknown routes) — error and 404 handling
+See **[apps/api/README.md](apps/api/README.md)** for Cognito configuration, local run, SAM deploy, and testing protected endpoints.
 
-## Environment variables
+Quick start (after Cognito settings are configured):
 
-The web app reads configuration from Vite env files (see [Vite env docs](https://vite.dev/guide/env-and-mode.html)). Variables must be prefixed with `VITE_`.
+```bash
+cd apps/api
+dotnet run
+```
+
+- Health: http://localhost:5080/health  
+- Swagger: http://localhost:5080/swagger  
+
+Deploy with SAM from the repo root (artifacts go to `jtj-epideixi-sam-artifacts`; see `samconfig.toml`):
+
+```bash
+sam build
+sam deploy
+```
+
+## Environment variables (web)
 
 | Variable | Description |
 |----------|-------------|
-| `VITE_API_BASE_URL` | Base URL for AWS-hosted backend APIs |
+| `VITE_API_BASE_URL` | Base URL for backend APIs (no trailing slash) |
 
 ## CI
 
-GitHub Actions runs `lint` and `build` on push and pull requests. The workflow copies `apps/web/.env.example` to `apps/web/.env` so builds do not require manual env setup in CI.
+GitHub Actions runs web lint/build and API `dotnet build` on push and pull requests.

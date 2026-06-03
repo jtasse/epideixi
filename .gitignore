@@ -9,3 +9,12 @@ build/
 Thumbs.db
 coverage/
 .vite/
+
+# .NET
+bin/
+obj/
+*.user
+*.suo
+.aws-sam/
+samconfig.toml
+apps/api/local-env.json
