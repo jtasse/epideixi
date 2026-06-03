@@ -1,26 +1,21 @@
 import type { ReactNode } from 'react';
+import { Navigate, useLocation } from 'react-router-dom';
+import { useAuth } from '@/auth/useAuth';
 
-/**
- * Placeholder guard for routes that will require authentication
- * once AWS Cognito (or similar) is wired to the backend.
- */
 export function ProtectedRoute({ children }: { children: ReactNode }) {
-  const isAuthenticated = false;
+  const { isAuthenticated, isLoading } = useAuth();
+  const location = useLocation();
 
-  if (!isAuthenticated) {
+  if (isLoading) {
     return (
       <section className="page">
-        <h1>Protected area</h1>
-        <p>
-          Authentication is not configured yet. This route is reserved for
-          signed-in users once backend auth is integrated.
-        </p>
-        <p className="muted">
-          Set <code>isAuthenticated</code> in <code>ProtectedRoute</code> when
-          connecting to your AWS-hosted API.
-        </p>
+        <p className="muted">Checking authentication…</p>
       </section>
     );
+  }
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace state={{ from: location.pathname }} />;
   }
 
   return <>{children}</>;

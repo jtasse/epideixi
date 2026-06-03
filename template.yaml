@@ -8,6 +8,22 @@ Parameters:
     Default: http://localhost:5173
     Description: Comma-separated browser origins allowed by API Gateway CORS and the API
 
+  GoogleClientId:
+    Type: String
+    NoEcho: true
+    Default: ''
+    Description: >-
+      Google OAuth client ID. Supplied at deploy time by scripts/deploy.ps1 from SSM;
+      do not set in samconfig.toml.
+
+  GoogleClientSecret:
+    Type: String
+    NoEcho: true
+    Default: ''
+    Description: >-
+      Google OAuth client secret. Supplied at deploy time by scripts/deploy.ps1 from SSM;
+      do not set in samconfig.toml.
+
   DeployDatabase:
     Type: String
     Default: 'false'
@@ -26,12 +42,10 @@ Parameters:
     Type: String
     Default: epideixi_admin
 
-  DatabaseMasterPasswordParameter:
+  DatabaseMasterPasswordSsmName:
     Type: String
     Default: epideixi_db_password
-    Description: >-
-      SSM Parameter Store name for the RDS master password (use SecureString;
-      resolved at deploy time via {{resolve:ssm-secure:...}}).
+    Description: SSM Parameter Store name (SecureString) for the RDS master password value
 
   DatabaseIamUsername:
     Type: String
@@ -55,6 +69,8 @@ Resources:
         - email
       UsernameAttributes:
         - email
+      AdminCreateUserConfig:
+        AllowAdminCreateUserOnly: false
       Policies:
         PasswordPolicy:
           MinimumLength: 8
@@ -63,8 +79,30 @@ Resources:
           RequireSymbols: false
           RequireUppercase: true
 
-  UserPoolClient:
+  UserPoolDomain:
+    Type: AWS::Cognito::UserPoolDomain
+    Properties:
+      Domain: !Sub '${AWS::StackName}-${AWS::AccountId}'
+      UserPoolId: !Ref UserPool
+
+  UserPoolGoogleIdentityProvider:
+    Type: AWS::Cognito::UserPoolIdentityProvider
+    Properties:
+      ProviderName: Google
+      ProviderType: Google
+      UserPoolId: !Ref UserPool
+      AttributeMapping:
+        email: email
+        name: name
+        username: sub
+      ProviderDetails:
+        client_id: !Ref GoogleClientId
+        client_secret: !Ref GoogleClientSecret
+        authorize_scopes: 'profile email openid'
+
+  UserPoolClientWithGoogle:
     Type: AWS::Cognito::UserPoolClient
+    DependsOn: UserPoolGoogleIdentityProvider
     Properties:
       ClientName: !Sub '${AWS::StackName}-spa-client'
       UserPoolId: !Ref UserPool
@@ -75,15 +113,16 @@ Resources:
         - ALLOW_USER_PASSWORD_AUTH
       SupportedIdentityProviders:
         - COGNITO
+        - Google
       AllowedOAuthFlows:
         - code
-        - implicit
       AllowedOAuthScopes:
         - openid
         - email
         - profile
       AllowedOAuthFlowsUserPoolClient: true
       CallbackURLs:
+        - http://localhost:5173/auth/callback
         - http://localhost:5173
       LogoutURLs:
         - http://localhost:5173
@@ -223,8 +262,8 @@ Resources:
       StorageType: gp2
       MasterUsername: !Ref DatabaseMasterUsername
       MasterUserPassword: !Sub
-        - '{{resolve:ssm-secure:${ParameterName}}}'
-        - ParameterName: !Ref DatabaseMasterPasswordParameter
+        - '{{resolve:ssm-secure:${SsmName}}}'
+        - SsmName: !Ref DatabaseMasterPasswordSsmName
       DBName: !Ref DatabaseName
       EnableIAMDatabaseAuthentication: true
       PubliclyAccessible: false
@@ -280,7 +319,7 @@ Resources:
           Cognito__Authority: !Sub
             - 'https://cognito-idp.${AWS::Region}.amazonaws.com/${UserPoolId}'
             - UserPoolId: !Ref UserPool
-          Cognito__Audience: !Ref UserPoolClient
+          Cognito__Audience: !Ref UserPoolClientWithGoogle
           Cors__AllowedOrigins: !Ref CorsAllowedOrigins
           Database__Host: !If
             - DeployDatabase
@@ -338,10 +377,18 @@ Outputs:
     Value: !Ref UserPool
   CognitoUserPoolClientId:
     Description: Cognito app client ID (JWT audience)
-    Value: !Ref UserPoolClient
+    Value: !Ref UserPoolClientWithGoogle
   CognitoAuthority:
     Description: JWT authority for local appsettings
     Value: !Sub 'https://cognito-idp.${AWS::Region}.amazonaws.com/${UserPool}'
+  CognitoHostedUiDomain:
+    Description: Cognito Hosted UI domain prefix (VITE_COGNITO_DOMAIN)
+    Value: !Sub '${AWS::StackName}-${AWS::AccountId}'
+  CognitoHostedUiUrl:
+    Description: Full Hosted UI base URL
+    Value: !Sub
+      - 'https://${DomainPrefix}.auth.${AWS::Region}.amazoncognito.com'
+      - DomainPrefix: !Ref UserPoolDomain
   DatabaseEndpoint:
     Condition: DeployDatabase
     Description: RDS hostname for psql / migration setup

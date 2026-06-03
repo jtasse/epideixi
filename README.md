@@ -26,7 +26,7 @@ Monorepo demo that includes React, ASP.NET Core API (via Lambda), IAM with Amazo
 | [AWS CLI](https://aws.amazon.com/cli/) | Deploy, Parameter Store, optional RDS admin |
 | npm 10+ | Frontend workspaces |
 
-AWS credentials are required for `sam deploy` and for reading SSM parameters when provisioning RDS.
+AWS credentials are required for `sam deploy`, for reading deployment secrets (see [docs/deployment.md](docs/deployment.md)), and when provisioning RDS.
 
 ## Quick start (local full stack)
 
@@ -50,16 +50,16 @@ AWS credentials are required for `sam deploy` and for reading SSM parameters whe
 
    See [apps/api/README.md](apps/api/README.md) for Cognito, migrations, and `/api/records` CRUD.
 
-3. **Web**
+3. **Web** — after `sam deploy`, copy Cognito outputs into `.env` (see [apps/web/README.md](apps/web/README.md)):
 
    ```bash
    npm install
    cp apps/web/.env.example apps/web/.env
-   # Set VITE_API_BASE_URL=http://localhost:5080
+   # VITE_API_BASE_URL, VITE_COGNITO_* from stack outputs
    npm run dev
    ```
 
-   Default: http://localhost:5173
+   Default: http://localhost:5173 — sign in with Google or register with email; visit `/protected` when authenticated.
 
 ## Frontend (`apps/web`)
 
@@ -78,6 +78,15 @@ npm run dev
 | Variable | Description |
 |----------|-------------|
 | `VITE_API_BASE_URL` | API base URL, no trailing slash (e.g. `http://localhost:5080`) |
+| `VITE_COGNITO_*` | User pool, client, Hosted UI domain, OAuth redirect URLs — see [apps/web/README.md](apps/web/README.md) |
+
+### Cognito authentication (web)
+
+The SAM template provisions a **Cognito User Pool**, Hosted UI domain, app client, and **Google** sign-in. OAuth credentials live in **SSM SecureString** and are applied at deploy time via [scripts/deploy.ps1](scripts/deploy.ps1) ([docs/deployment.md](docs/deployment.md)).
+
+- Register / sign in with email and password  
+- **Continue with Google** (one or more Google accounts)  
+- Protected routes, logout, session persistence — documented in **[apps/web/README.md](apps/web/README.md)**  
 
 ## Backend (`apps/api`)
 
@@ -105,14 +114,15 @@ Detailed docs: **[apps/api/README.md](apps/api/README.md)**.
    aws s3 mb s3://jtj-epideixi-sam-artifacts --region us-east-1
    ```
 
-3. Build and deploy (Lambda + Cognito; database stays local unless you opt in):
+3. Create Google OAuth parameters in SSM SecureString — [docs/deployment.md](docs/deployment.md).
 
-   ```bash
-   sam build
-   sam deploy
+4. Build and deploy (Lambda + Cognito + Google; database stays local unless you opt in):
+
+   ```powershell
+   .\scripts\deploy.ps1
    ```
 
-4. Set `VITE_API_BASE_URL` to the stack output **ApiBaseUrl**.
+5. Set `VITE_API_BASE_URL` and Cognito values in `apps/web/.env` from stack outputs.
 
 ### Optional: RDS PostgreSQL in AWS
 
@@ -129,7 +139,7 @@ Detailed docs: **[apps/api/README.md](apps/api/README.md)**.
 2. Deploy with database resources:
 
    ```bash
-   sam deploy --parameter-overrides DeployDatabase=true
+   .\scripts\deploy.ps1 -ExtraParameterOverrides 'DeployDatabase=true'
    ```
 
 3. Create the IAM database user and apply migrations — [scripts/db/README.md](scripts/db/README.md).
@@ -145,5 +155,7 @@ GitHub Actions (`.github/workflows/ci.yml`) on push/PR:
 
 ## Further reading
 
+- [docs/deployment.md](docs/deployment.md) — secrets, SSM setup, deploy wrapper (`scripts/deploy.ps1`)  
+- [apps/web/README.md](apps/web/README.md) — Cognito + Google OAuth setup, environment variables, auth flows  
 - [apps/api/README.md](apps/api/README.md) — environment variables, endpoints, SAM parameters, free tier notes  
 - [scripts/db/README.md](scripts/db/README.md) — RDS IAM user and migrations after deploy  

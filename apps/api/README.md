@@ -157,18 +157,19 @@ Create the bucket once per account/region (if it does not exist):
 aws s3 mb s3://jtj-epideixi-sam-artifacts --region us-east-1
 ```
 
-Deploy (Lambda + Cognito only, local Docker for Postgres):
+Deploy (Lambda + Cognito + Google; local Docker for Postgres):
 
-```bash
+```powershell
 cp samconfig.toml.example samconfig.toml
-sam build
-sam deploy
+.\scripts\deploy.ps1
 ```
+
+See [docs/deployment.md](../../docs/deployment.md) for SSM Google OAuth setup and why the wrapper is used.
 
 Deploy **with RDS PostgreSQL (IAM auth)**:
 
-```bash
-sam deploy --parameter-overrides DeployDatabase=true
+```powershell
+.\scripts\deploy.ps1 -ExtraParameterOverrides 'DeployDatabase=true'
 ```
 
 Create or update the parameter (if not already present):
@@ -181,7 +182,7 @@ aws ssm put-parameter \
   --overwrite
 ```
 
-The template resolves it with `{{resolve:ssm-secure:...}}` (`DatabaseMasterPasswordParameter`, default name `epideixi_db_password`). The IAM principal running `sam deploy` needs `ssm:GetParameter` on that parameter.
+The template resolves the RDS master password from SSM at deploy time (`DatabaseMasterPasswordSsmName`, default `epideixi_db_password`). The deploy principal needs `ssm:GetParameter` on that parameter.
 
 After RDS is available, follow **[scripts/db/README.md](../../scripts/db/README.md)** (IAM user SQL + `dotnet ef database update`). Production Lambda keeps `Database__ApplyMigrations=false`; apply migrations from your workstation or CI.
 
@@ -189,7 +190,7 @@ Useful parameters:
 
 - `CorsAllowedOrigins` — comma-separated origins for API Gateway CORS and the ASP.NET CORS policy.
 - `DeployDatabase` — `true` provisions VPC + `db.t4g.micro` PostgreSQL with IAM authentication enabled.
-- `DatabaseMasterPasswordParameter` — SSM parameter name for RDS master password (default `epideixi_db_password`; API uses IAM user `iam_api` at runtime).
+- `DatabaseMasterPasswordSsmName` — SSM Parameter Store name for RDS master password (default `epideixi_db_password`; API uses IAM user `iam_api` at runtime).
 
 After deploy, set the React app `VITE_API_BASE_URL` to the **ApiBaseUrl** output (no trailing slash).
 

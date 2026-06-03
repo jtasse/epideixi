@@ -1,6 +1,9 @@
 import { NavLink, Outlet } from 'react-router-dom';
+import { useAuth } from '@/auth/useAuth';
 
 export function Layout() {
+  const { user, isAuthenticated, isLoading, signOutUser } = useAuth();
+
   return (
     <div className="app">
       <header className="app-header">
@@ -10,7 +13,27 @@ export function Layout() {
             Home
           </NavLink>
           <NavLink to="/protected">Protected</NavLink>
+          {!isLoading && !isAuthenticated && (
+            <NavLink to="/login">Sign in</NavLink>
+          )}
         </nav>
+        <div className="app-user">
+          {isLoading && <span className="muted">…</span>}
+          {!isLoading && isAuthenticated && user && (
+            <>
+              <span className="user-label" title={user.userId}>
+                {user.email ?? user.name ?? 'Signed in'}
+              </span>
+              <button
+                type="button"
+                className="btn btn-ghost"
+                onClick={() => void signOutUser()}
+              >
+                Sign out
+              </button>
+            </>
+          )}
+        </div>
       </header>
       <main className="app-main">
         <Outlet />
