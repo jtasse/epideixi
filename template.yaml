@@ -6,7 +6,16 @@ Parameters:
   CorsAllowedOrigins:
     Type: String
     Default: http://localhost:5173
-    Description: Comma-separated browser origins allowed by API Gateway CORS and the API
+    Description: >-
+      Comma-separated browser origins for API CORS (include http://localhost:5173 and,
+      after Amplify deploy, your https://main.<id>.amplifyapp.com origin).
+
+  SpaAllowedOrigin:
+    Type: String
+    Default: ''
+    Description: >-
+      Production SPA origin without trailing slash (e.g. Amplify https://main.<id>.amplifyapp.com).
+      Adds Cognito OAuth callback/logout URLs. Leave empty until Amplify URL is known.
 
   GoogleClientId:
     Type: String
@@ -54,6 +63,7 @@ Parameters:
 
 Conditions:
   DeployDatabase: !Equals [!Ref DeployDatabase, 'true']
+  HasSpaOrigin: !Not [!Equals [!Ref SpaAllowedOrigin, '']]
 
 Globals:
   Function:
@@ -124,8 +134,16 @@ Resources:
       CallbackURLs:
         - http://localhost:5173/auth/callback
         - http://localhost:5173
+        - !If
+          - HasSpaOrigin
+          - !Sub '${SpaAllowedOrigin}/auth/callback'
+          - !Ref AWS::NoValue
       LogoutURLs:
         - http://localhost:5173
+        - !If
+          - HasSpaOrigin
+          - !Ref SpaAllowedOrigin
+          - !Ref AWS::NoValue
       PreventUserExistenceErrors: ENABLED
 
   HttpApi:

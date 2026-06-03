@@ -1,0 +1,23 @@
+# Used when Amplify "Monorepo app root" is apps/web (recommended for this repo).
+# Artifacts baseDirectory is relative to this folder — must be dist, not apps/web/dist.
+
+version: 1
+frontend:
+  phases:
+    preBuild:
+      commands:
+        - cd ../.. && npm ci
+    build:
+      commands:
+        - cd ../.. && npm run build
+  artifacts:
+    baseDirectory: dist
+    files:
+      - '**/*'
+  cache:
+    paths:
+      - ../../node_modules/**/*
+  customRedirects:
+    - source: '/<*>'
+      target: '/index.html'
+      status: '200'

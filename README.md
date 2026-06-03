@@ -155,6 +155,7 @@ GitHub Actions (`.github/workflows/ci.yml`) on push/PR:
 
 ## Further reading
 
+- [docs/hosting-amplify.md](docs/hosting-amplify.md) — deploy the React app to Amplify (default AWS URL)  
 - [docs/deployment.md](docs/deployment.md) — secrets, SSM setup, deploy wrapper (`scripts/deploy.ps1`)  
 - [apps/web/README.md](apps/web/README.md) — Cognito + Google OAuth setup, environment variables, auth flows  
 - [apps/api/README.md](apps/api/README.md) — environment variables, endpoints, SAM parameters, free tier notes  

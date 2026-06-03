@@ -17,4 +17,5 @@ obj/
 *.suo
 .aws-sam/
 samconfig.toml
+.sam-deploy-overrides.yaml
 apps/api/local-env.json

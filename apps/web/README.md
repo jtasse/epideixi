@@ -84,14 +84,9 @@ npm run build
 npm run lint
 ```
 
-## Production callbacks
+## Production hosting (Amplify)
 
-When hosting the SPA on a new origin (e.g. GitHub Pages), add callback and logout URLs to the Cognito app client and update `template.yaml` / redeploy, then set:
-
-- `VITE_COGNITO_REDIRECT_SIGN_IN=https://your-host/auth/callback`
-- `VITE_COGNITO_REDIRECT_SIGN_OUT=https://your-host`
-
-Add the same origins to the `CorsAllowedOrigins` SAM parameter for API CORS.
+To deploy the SPA on **Amplify Hosting** with the default `https://main.<id>.amplifyapp.com` URL, follow **[docs/hosting-amplify.md](../../docs/hosting-amplify.md)**. The repo includes `amplify.yml` at the root; env var templates are in `.env.amplify.example`.
 
 ## Troubleshooting
 

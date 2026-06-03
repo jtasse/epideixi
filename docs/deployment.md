@@ -137,3 +137,5 @@ CI builds and tests only; it does not deploy. A pipeline would mirror the wrappe
 | `sam deploy` not using your config | Run from repo root; ensure `samconfig.toml` exists |
 
 Web app details: [apps/web/README.md](../apps/web/README.md).
+
+Production SPA hosting: [hosting-amplify.md](hosting-amplify.md).

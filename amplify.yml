@@ -1,0 +1,23 @@
+# Used when Amplify app root is the repository root (monorepo checkbox OFF).
+# If monorepo app root is apps/web, Amplify uses apps/web/amplify.yml instead (baseDirectory: dist).
+# See docs/hosting-amplify.md.
+version: 1
+frontend:
+  phases:
+    preBuild:
+      commands:
+        - npm ci
+    build:
+      commands:
+        - npm run build
+  artifacts:
+    baseDirectory: apps/web/dist
+    files:
+      - '**/*'
+  cache:
+    paths:
+      - node_modules/**/*
+  customRedirects:
+    - source: '/<*>'
+      target: '/index.html'
+      status: '200'
