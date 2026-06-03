@@ -1,0 +1,16 @@
+{
+  "name": "epideixi",
+  "private": true,
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace @epideixi/web",
+    "build": "npm run build --workspace @epideixi/web",
+    "lint": "npm run lint --workspace @epideixi/web",
+    "preview": "npm run preview --workspace @epideixi/web"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
