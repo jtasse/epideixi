@@ -1,12 +1,45 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
-Description: Epideixi - ASP.NET Core API on Lambda with Amazon Cognito JWT auth
+Description: Epideixi - ASP.NET Core API on Lambda with Cognito and optional RDS PostgreSQL (IAM auth)
 
 Parameters:
   CorsAllowedOrigins:
     Type: String
     Default: http://localhost:5173
     Description: Comma-separated browser origins allowed by API Gateway CORS and the API
+
+  DeployDatabase:
+    Type: String
+    Default: 'false'
+    AllowedValues:
+      - 'true'
+      - 'false'
+    Description: >-
+      Provision RDS PostgreSQL and connect Lambda in a VPC. Set true for AWS persistence;
+      false keeps the previous Lambda-only stack (use local Docker Postgres for dev).
+
+  DatabaseName:
+    Type: String
+    Default: epideixi
+
+  DatabaseMasterUsername:
+    Type: String
+    Default: epideixi_admin
+
+  DatabaseMasterPasswordParameter:
+    Type: String
+    Default: epideixi_db_password
+    Description: >-
+      SSM Parameter Store name for the RDS master password (use SecureString;
+      resolved at deploy time via {{resolve:ssm-secure:...}}).
+
+  DatabaseIamUsername:
+    Type: String
+    Default: iam_api
+    Description: PostgreSQL role that uses RDS IAM authentication (rds_iam)
+
+Conditions:
+  DeployDatabase: !Equals [!Ref DeployDatabase, 'true']
 
 Globals:
   Function:
@@ -76,6 +109,132 @@ Resources:
           - Content-Type
         MaxAge: 600
 
+  EpideixiVpc:
+    Type: AWS::EC2::VPC
+    Condition: DeployDatabase
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-vpc'
+
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Condition: DeployDatabase
+
+  VpcGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Condition: DeployDatabase
+    Properties:
+      VpcId: !Ref EpideixiVpc
+      InternetGatewayId: !Ref InternetGateway
+
+  PublicSubnetA:
+    Type: AWS::EC2::Subnet
+    Condition: DeployDatabase
+    Properties:
+      VpcId: !Ref EpideixiVpc
+      AvailabilityZone: !Select [0, !GetAZs '']
+      CidrBlock: 10.0.1.0/24
+      MapPublicIpOnLaunch: true
+
+  PublicSubnetB:
+    Type: AWS::EC2::Subnet
+    Condition: DeployDatabase
+    Properties:
+      VpcId: !Ref EpideixiVpc
+      AvailabilityZone: !Select [1, !GetAZs '']
+      CidrBlock: 10.0.2.0/24
+      MapPublicIpOnLaunch: true
+
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Condition: DeployDatabase
+    Properties:
+      VpcId: !Ref EpideixiVpc
+
+  PublicRoute:
+    Type: AWS::EC2::Route
+    Condition: DeployDatabase
+    DependsOn: VpcGatewayAttachment
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+  PublicSubnetARouteAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Condition: DeployDatabase
+    Properties:
+      SubnetId: !Ref PublicSubnetA
+      RouteTableId: !Ref PublicRouteTable
+
+  PublicSubnetBRouteAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Condition: DeployDatabase
+    Properties:
+      SubnetId: !Ref PublicSubnetB
+      RouteTableId: !Ref PublicRouteTable
+
+  DatabaseSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Condition: DeployDatabase
+    Properties:
+      DBSubnetGroupDescription: Epideixi RDS subnets
+      SubnetIds:
+        - !Ref PublicSubnetA
+        - !Ref PublicSubnetB
+
+  LambdaSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Condition: DeployDatabase
+    Properties:
+      GroupDescription: Epideixi API Lambda
+      VpcId: !Ref EpideixiVpc
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          CidrIp: 0.0.0.0/0
+
+  DatabaseSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Condition: DeployDatabase
+    Properties:
+      GroupDescription: Epideixi PostgreSQL
+      VpcId: !Ref EpideixiVpc
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 5432
+          ToPort: 5432
+          SourceSecurityGroupId: !Ref LambdaSecurityGroup
+
+  Database:
+    Type: AWS::RDS::DBInstance
+    Condition: DeployDatabase
+    DeletionPolicy: Snapshot
+    UpdateReplacePolicy: Snapshot
+    Properties:
+      DBInstanceIdentifier: !Sub '${AWS::StackName}-postgres'
+      Engine: postgres
+      EngineVersion: '15'
+      DBInstanceClass: db.t4g.micro
+      AllocatedStorage: 20
+      StorageType: gp2
+      MasterUsername: !Ref DatabaseMasterUsername
+      MasterUserPassword: !Sub
+        - '{{resolve:ssm-secure:${ParameterName}}}'
+        - ParameterName: !Ref DatabaseMasterPasswordParameter
+      DBName: !Ref DatabaseName
+      EnableIAMDatabaseAuthentication: true
+      PubliclyAccessible: false
+      VPCSecurityGroups:
+        - !Ref DatabaseSecurityGroup
+      DBSubnetGroupName: !Ref DatabaseSubnetGroup
+      BackupRetentionPeriod: 1
+      DeletionProtection: false
+      MultiAZ: false
+
   ApiFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -85,6 +244,36 @@ Resources:
       Runtime: dotnet6
       Architectures:
         - x86_64
+      Policies:
+        - Version: '2012-10-17'
+          Statement:
+            - Sid: LambdaVpcNetworkInterfaces
+              Effect: Allow
+              Action:
+                - ec2:CreateNetworkInterface
+                - ec2:DescribeNetworkInterfaces
+                - ec2:DeleteNetworkInterface
+                - ec2:AssignPrivateIpAddresses
+                - ec2:UnassignPrivateIpAddresses
+              Resource: '*'
+            - Sid: RdsIamDatabaseConnect
+              Effect: Allow
+              Action: rds-db:connect
+              Resource: !If
+                - DeployDatabase
+                - !Sub
+                  - 'arn:aws:rds-db:${AWS::Region}:${AWS::AccountId}:dbuser:${DbiResourceId}/${IamUser}'
+                  - DbiResourceId: !GetAtt Database.DbiResourceId
+                    IamUser: !Ref DatabaseIamUsername
+                - !Sub 'arn:aws:rds-db:${AWS::Region}:${AWS::AccountId}:dbuser:unused/unused'
+      VpcConfig: !If
+        - DeployDatabase
+        - SecurityGroupIds:
+            - !Ref LambdaSecurityGroup
+          SubnetIds:
+            - !Ref PublicSubnetA
+            - !Ref PublicSubnetB
+        - !Ref AWS::NoValue
       Environment:
         Variables:
           ASPNETCORE_ENVIRONMENT: Production
@@ -93,6 +282,28 @@ Resources:
             - UserPoolId: !Ref UserPool
           Cognito__Audience: !Ref UserPoolClient
           Cors__AllowedOrigins: !Ref CorsAllowedOrigins
+          Database__Host: !If
+            - DeployDatabase
+            - !GetAtt Database.Endpoint.Address
+            - ''
+          Database__Port: !If
+            - DeployDatabase
+            - !GetAtt Database.Endpoint.Port
+            - '5432'
+          Database__Name: !If
+            - DeployDatabase
+            - !Ref DatabaseName
+            - ''
+          Database__Username: !If
+            - DeployDatabase
+            - !Ref DatabaseIamUsername
+            - ''
+          Database__UseIamAuth: !If
+            - DeployDatabase
+            - 'true'
+            - 'false'
+          Database__Region: !Ref AWS::Region
+          Database__ApplyMigrations: 'false'
       Events:
         ProxyApi:
           Type: HttpApi
@@ -131,3 +342,19 @@ Outputs:
   CognitoAuthority:
     Description: JWT authority for local appsettings
     Value: !Sub 'https://cognito-idp.${AWS::Region}.amazonaws.com/${UserPool}'
+  DatabaseEndpoint:
+    Condition: DeployDatabase
+    Description: RDS hostname for psql / migration setup
+    Value: !GetAtt Database.Endpoint.Address
+  DatabasePort:
+    Condition: DeployDatabase
+    Description: RDS port
+    Value: !GetAtt Database.Endpoint.Port
+  DatabaseIamUsername:
+    Condition: DeployDatabase
+    Description: Run scripts/db/create-iam-db-user.sql as this IAM-enabled role after deploy
+    Value: !Ref DatabaseIamUsername
+  DatabaseDbiResourceId:
+    Condition: DeployDatabase
+    Description: Used in rds-db:connect IAM policy
+    Value: !GetAtt Database.DbiResourceId

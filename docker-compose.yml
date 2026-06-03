@@ -1,0 +1,21 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: epideixi-postgres
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: epideixi
+      POSTGRES_PASSWORD: epideixi
+      POSTGRES_DB: epideixi
+    volumes:
+      - epideixi_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U epideixi -d epideixi"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  epideixi_pgdata:

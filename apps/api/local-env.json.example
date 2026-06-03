@@ -3,6 +3,13 @@
     "ASPNETCORE_ENVIRONMENT": "Development",
     "Cognito__Authority": "https://cognito-idp.us-east-1.amazonaws.com/REPLACE_USER_POOL_ID",
     "Cognito__Audience": "REPLACE_APP_CLIENT_ID",
-    "Cors__AllowedOrigins": "http://localhost:5173"
+    "Cors__AllowedOrigins": "http://localhost:5173",
+    "Database__Host": "localhost",
+    "Database__Port": "5432",
+    "Database__Name": "epideixi",
+    "Database__Username": "epideixi",
+    "Database__Password": "epideixi",
+    "Database__UseIamAuth": "false",
+    "Database__ApplyMigrations": "true"
   }
 }

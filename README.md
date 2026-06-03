@@ -1,78 +1,149 @@
 # Epideixi
 
-Monorepo demo solution that includes React, IAM, AWS Cognito, ASP.NET Core, and PostgreSQL.
+Monorepo demo that includes React, ASP.NET Core API (via Lambda), IAM with Amazon Cognito, PostgreSQL (Entity Framework Core), and AWS SAM.
 
 ## Repository layout
 
 | Path | Description |
 |------|-------------|
-| `apps/web` | React SPA (Vite + TypeScript + React Router) |
-| `apps/api` | ASP.NET Core Web API (Cognito JWT, Swagger, Lambda-ready) |
-| `template.yaml` | AWS SAM template (API Lambda, HTTP API, Cognito User Pool) |
+| [apps/web](apps/web) | React SPA (Vite + TypeScript + React Router); see [apps/web/README.md](apps/web/README.md) |
+| [apps/api](apps/api) | ASP.NET Core Web API — Cognito JWT, EF Core, PostgreSQL |
+| [apps/api/README.md](apps/api/README.md) | API configuration, migrations, endpoints, SAM/RDS details |
+| [docker-compose.yml](docker-compose.yml) | Local PostgreSQL 16 (persistent volume) |
+| [template.yaml](template.yaml) | SAM: Lambda, HTTP API, Cognito; optional RDS + VPC |
+| [samconfig.toml.example](samconfig.toml.example) | Example SAM deploy config (copy to `samconfig.toml`) |
+| [scripts/db](scripts/db) | SQL scripts for RDS IAM database user setup |
+| [.config/dotnet-tools.json](.config/dotnet-tools.json) | Pin `dotnet-ef` for migrations |
 
 ## Prerequisites
 
-- [Node.js](https://nodejs.org/) 20 or newer
-- [.NET 6 SDK](https://dotnet.microsoft.com/download/dotnet/6.0) or newer (API targets `net6.0`; .NET 8 SDK also works)
-- [AWS SAM CLI](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/install-sam-cli.html) (deploy API to Lambda)
-- npm 10+ (bundled with Node.js)
+| Tool | Used for |
+|------|----------|
+| [Node.js](https://nodejs.org/) 20+ | React app |
+| [.NET 6 SDK](https://dotnet.microsoft.com/download/dotnet/6.0)+ | API (`net6.0`) |
+| [Docker](https://www.docker.com/) | Local PostgreSQL |
+| [AWS SAM CLI](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/install-sam-cli.html) | Build and deploy API to Lambda |
+| [AWS CLI](https://aws.amazon.com/cli/) | Deploy, Parameter Store, optional RDS admin |
+| npm 10+ | Frontend workspaces |
+
+AWS credentials are required for `sam deploy` and for reading SSM parameters when provisioning RDS.
+
+## Quick start (local full stack)
+
+1. **PostgreSQL**
+
+   ```bash
+   docker compose up -d
+   ```
+
+2. **API** — configure Cognito in `apps/api/appsettings.Development.json` (or user secrets), then:
+
+   ```bash
+   dotnet tool restore
+   cd apps/api
+   dotnet run
+   ```
+
+   - Health: http://localhost:5080/health  
+   - Swagger: http://localhost:5080/swagger  
+   - Migrations apply on startup in Development (`Database:ApplyMigrations: true`)
+
+   See [apps/api/README.md](apps/api/README.md) for Cognito, migrations, and `/api/records` CRUD.
+
+3. **Web**
+
+   ```bash
+   npm install
+   cp apps/web/.env.example apps/web/.env
+   # Set VITE_API_BASE_URL=http://localhost:5080
+   npm run dev
+   ```
+
+   Default: http://localhost:5173
 
 ## Frontend (`apps/web`)
-
-### Setup
 
 ```bash
 npm install
 cp apps/web/.env.example apps/web/.env
-```
-
-Edit `apps/web/.env` and set `VITE_API_BASE_URL` to your API base URL (local: `http://localhost:5080`, deployed: SAM output **ApiBaseUrl**).
-
-### Start the frontend
-
-From the repository root:
-
-```bash
 npm run dev
 ```
 
-Default: http://localhost:5173
-
-### Other frontend commands
-
 | Command | Description |
 |---------|-------------|
-| `npm run build` | Production build of the web app |
-| `npm run lint` | ESLint across the web app |
-| `npm run preview` | Serve the production build locally |
-
-## Backend API (`apps/api`)
-
-See **[apps/api/README.md](apps/api/README.md)** for Cognito configuration, local run, SAM deploy, and testing protected endpoints.
-
-Quick start (after Cognito settings are configured):
-
-```bash
-cd apps/api
-dotnet run
-```
-
-- Health: http://localhost:5080/health  
-- Swagger: http://localhost:5080/swagger  
-
-Deploy with SAM from the repo root (artifacts go to `jtj-epideixi-sam-artifacts`; see `samconfig.toml`):
-
-```bash
-sam build
-sam deploy
-```
-
-## Environment variables (web)
+| `npm run build` | Production build |
+| `npm run lint` | ESLint |
+| `npm run preview` | Serve production build locally |
 
 | Variable | Description |
 |----------|-------------|
-| `VITE_API_BASE_URL` | Base URL for backend APIs (no trailing slash) |
+| `VITE_API_BASE_URL` | API base URL, no trailing slash (e.g. `http://localhost:5080`) |
+
+## Backend (`apps/api`)
+
+Detailed docs: **[apps/api/README.md](apps/api/README.md)**.
+
+| Area | Summary |
+|------|---------|
+| Auth | Amazon Cognito JWT on protected routes |
+| Data | EF Core + PostgreSQL; generic `Record` entity (Id, Name, Description) |
+| Local DB | Docker Compose; password auth |
+| AWS DB | Optional RDS via SAM (`DeployDatabase=true`); API connects with **IAM DB auth** |
+| Migrations | `dotnet ef` or `Database__ApplyMigrations=true` on startup (local dev) |
+
+## Deploy to AWS (SAM)
+
+1. Copy and edit SAM config:
+
+   ```bash
+   cp samconfig.toml.example samconfig.toml
+   ```
+
+2. Create the **deployment artifacts** S3 bucket once per account/region (separate from application data buckets such as other projects may use):
+
+   ```bash
+   aws s3 mb s3://jtj-epideixi-sam-artifacts --region us-east-1
+   ```
+
+3. Build and deploy (Lambda + Cognito; database stays local unless you opt in):
+
+   ```bash
+   sam build
+   sam deploy
+   ```
+
+4. Set `VITE_API_BASE_URL` to the stack output **ApiBaseUrl**.
+
+### Optional: RDS PostgreSQL in AWS
+
+1. Store the RDS **master** password in Parameter Store (SecureString):
+
+   ```bash
+   aws ssm put-parameter \
+     --name epideixi_db_password \
+     --type SecureString \
+     --value 'YourSecureMasterPassword' \
+     --overwrite
+   ```
+
+2. Deploy with database resources:
+
+   ```bash
+   sam deploy --parameter-overrides DeployDatabase=true
+   ```
+
+3. Create the IAM database user and apply migrations — [scripts/db/README.md](scripts/db/README.md).
+
+`DeployDatabase` defaults to `false` in `samconfig.toml.example` so a normal deploy does not create RDS unless you choose to.
 
 ## CI
 
-GitHub Actions runs web lint/build and API `dotnet build` on push and pull requests.
+GitHub Actions (`.github/workflows/ci.yml`) on push/PR:
+
+- **web** — `npm ci`, lint, build  
+- **api** — `dotnet build` for `apps/api`
+
+## Further reading
+
+- [apps/api/README.md](apps/api/README.md) — environment variables, endpoints, SAM parameters, free tier notes  
+- [scripts/db/README.md](scripts/db/README.md) — RDS IAM user and migrations after deploy  

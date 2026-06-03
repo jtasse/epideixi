@@ -1,6 +1,7 @@
 using System.Text.Json.Serialization;
 using Amazon.Lambda.AspNetCoreServer.Hosting;
 using Epideixi.Api.Configuration;
+using Epideixi.Api.Extensions;
 using Epideixi.Api.Models;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
@@ -92,6 +93,7 @@ builder.Services
     });
 
 builder.Services.AddAuthorization();
+builder.Services.AddEpideixiDatabase(builder.Configuration);
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
     {
@@ -106,7 +108,7 @@ builder.Services.AddSwaggerGen(options =>
     {
         Title = "Epideixi API",
         Version = "v1",
-        Description = "ASP.NET Core API secured with Amazon Cognito JWTs.",
+        Description = "ASP.NET Core API with Cognito JWT auth and PostgreSQL persistence.",
     });
 
     options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
@@ -163,5 +165,6 @@ app.UseSwaggerUI(options =>
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+app.ApplyDatabaseMigrationsIfRequested();
 
 app.Run();

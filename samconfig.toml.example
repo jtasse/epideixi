@@ -1,4 +1,5 @@
 # Copy to samconfig.toml and adjust for your AWS account/region.
+# See README.md and apps/api/README.md for deploy and RDS/SSM setup.
 version = 0.1
 
 [default.deploy.parameters]
@@ -11,7 +12,9 @@ s3_prefix = "epideixi"
 region = "us-east-1"
 confirm_changeset = true
 capabilities = "CAPABILITY_IAM"
-parameter_overrides = "CorsAllowedOrigins=\"http://localhost:5173\""
+parameter_overrides = "CorsAllowedOrigins=\"http://localhost:5173\" DeployDatabase=\"false\""
+# To provision RDS: set DeployDatabase=true and create SSM parameter epideixi_db_password (SecureString).
+# parameter_overrides = "CorsAllowedOrigins=\"http://localhost:5173\" DeployDatabase=\"true\""
 
 [default.build.parameters]
 cached = true
