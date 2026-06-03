@@ -93,6 +93,8 @@ Examples:
 
 Rotating credentials: update the SSM parameters, then run `.\scripts\deploy.ps1` again so CloudFormation updates the Cognito Google IdP.
 
+**Never** deploy with placeholder Google values (`test-id` / `test-secret`) — Cognito will store them and Google sign-in will fail everywhere with “The OAuth client was not found.”
+
 ### What does *not* need custom logic
 
 - Cognito User Pool, Hosted UI domain, app client (Google + email), Lambda, HTTP API — all defined in `template.yaml`.

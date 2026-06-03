@@ -74,7 +74,7 @@ try {
     }
     $utf8NoBom = New-Object System.Text.UTF8Encoding $false
     [System.IO.File]::WriteAllText($overridesFile, ($yamlLines -join "`n") + "`n", $utf8NoBom)
-    $overridesUri = 'file:///' + ($overridesFile -replace '\\', '/')
+    $overridesUri = 'file://' + ($overridesFile -replace '\\', '/')
 
     $SamDeployArgs = @($SamDeployArgs | Where-Object { $_ -and $_ -ne '--' })
 
@@ -87,10 +87,12 @@ try {
     Write-Host 'Running sam deploy (parameter overrides from samconfig.toml + SSM Google creds)...'
     $samArgs = @('deploy') + $SamDeployArgs + @('--parameter-overrides', $overridesUri)
     & sam @samArgs
-    exit $LASTEXITCODE
+    $exitCode = $LASTEXITCODE
 }
 finally {
     if (Test-Path $overridesFile) {
-        Remove-Item -Path $overridesFile -Force
+        Remove-Item -Path $overridesFile -Force -ErrorAction SilentlyContinue
     }
 }
+
+exit $exitCode
