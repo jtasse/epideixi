@@ -87,7 +87,8 @@ Amplify **Hosting** for a small static SPA is often **$0/month** within free all
 |-------|--------|
 | **Welcome** placeholder page | Build failed or wrong artifact path — see below |
 | Build fails on Amplify | All `VITE_*` env vars set; monorepo root `apps/web` → `apps/web/amplify.yml` + **`dist`** (not `apps/web/dist`) |
-| 404 on `/login` or refresh | `customRedirects` in `amplify.yml` (SPA → `index.html`) |
+| 404 on `/login`, `/auth/callback`, or refresh | SPA rewrites in `amplify.yml` **and** `dist/404.html` (copied from `index.html` at build). Redeploy Amplify after push. In **Network**, `GET /auth/callback` should be **200**, not 404. |
+| Google sign-in lands on `/login` with console 404 | Usually `/auth/callback` returned 404 before React ran — fix rewrites + redeploy; duplicate-email error should appear in the login banner after fix |
 | Cognito redirect error | `VITE_COGNITO_REDIRECT_*` match Amplify URL exactly; `SpaAllowedOrigin` deployed via `scripts/deploy.ps1` |
 | API CORS error | `CorsAllowedOrigins` in `samconfig.toml` includes the Amplify origin (no path) |
 
