@@ -20,7 +20,7 @@ Monorepo demo that includes React, ASP.NET Core API (via Lambda), IAM with Amazo
 | Tool | Used for |
 |------|----------|
 | [Node.js](https://nodejs.org/) 20+ | React app |
-| [.NET 6 SDK](https://dotnet.microsoft.com/download/dotnet/6.0)+ | API (`net6.0`) |
+| [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0)+ | API (`net8.0`, Lambda `dotnet8`) |
 | [Docker](https://www.docker.com/) | Local PostgreSQL |
 | [AWS SAM CLI](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/install-sam-cli.html) | Build and deploy API to Lambda |
 | [AWS CLI](https://aws.amazon.com/cli/) | Deploy, Parameter Store, optional RDS admin |

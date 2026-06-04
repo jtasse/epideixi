@@ -4,7 +4,7 @@ ASP.NET Core Web API with **PostgreSQL** (Entity Framework Core), **Amazon Cogni
 
 ## Prerequisites
 
-- [.NET 6 SDK](https://dotnet.microsoft.com/download/dotnet/6.0) or newer
+- [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0) (matches Lambda `dotnet8` runtime; repo `global.json` pins SDK 8)
 - [Docker](https://www.docker.com/) for local PostgreSQL (`docker compose` from repo root)
 - [AWS SAM CLI](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/install-sam-cli.html) (Lambda packaging and deployment)
 - AWS credentials when deploying (`aws configure` or equivalent)

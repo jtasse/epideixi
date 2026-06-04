@@ -298,7 +298,7 @@ Resources:
       FunctionName: !Sub '${AWS::StackName}-api'
       CodeUri: ./apps/api/
       Handler: Epideixi.Api
-      Runtime: dotnet6
+      Runtime: dotnet8
       Architectures:
         - x86_64
       Policies:
@@ -375,8 +375,8 @@ Resources:
             Path: /
             Method: ANY
     Metadata:
-      BuildMethod: dotnet6
-      DockerTag: dotnet6-v1
+      BuildMethod: dotnet8
+      DockerTag: dotnet8-v1
       DockerContext: .
       ProjectPath: ./Epideixi.Api.csproj
 
