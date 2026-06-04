@@ -15,6 +15,7 @@ capabilities = "CAPABILITY_IAM"
 parameter_overrides = "CorsAllowedOrigins=\"http://localhost:5173\" DeployDatabase=\"false\""
 # After Amplify deploy, add Amplify origin to CorsAllowedOrigins and redeploy with SpaAllowedOrigin (see docs/hosting-amplify.md).
 # Google OAuth: SSM SecureString epideixi_google_client_id / epideixi_google_client_secret; deploy via scripts/deploy.ps1 (see docs/deployment.md).
+# Cognito sign-up email (optional, reduces spam): SSM epideixi_cognito_ses_source_arn + epideixi_cognito_email_from — see docs/deployment.md.
 # To provision RDS: set DeployDatabase=true and create SSM parameter epideixi_db_password (SecureString).
 # parameter_overrides = "CorsAllowedOrigins=\"http://localhost:5173\" DeployDatabase=\"true\""
 
