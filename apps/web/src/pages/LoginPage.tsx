@@ -1,5 +1,10 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
+import {
+  consumeAuthError,
+  formatAuthError,
+  getOAuthErrorFromUrl,
+} from '@/auth/authErrors';
 import { useAuth } from '@/auth/useAuth';
 
 type Mode = 'signIn' | 'signUp' | 'confirm';
@@ -25,6 +30,24 @@ export function LoginPage() {
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+
+  useEffect(() => {
+    const state = location.state as { authError?: string; from?: string } | null;
+    const urlError = getOAuthErrorFromUrl();
+    const message = urlError ?? state?.authError ?? consumeAuthError();
+    if (!message) {
+      return;
+    }
+
+    setError(message);
+
+    if (urlError || state?.authError) {
+      navigate('/login', {
+        replace: true,
+        state: state?.from ? { from: state.from } : {},
+      });
+    }
+  }, [location.state, navigate]);
 
   if (isAuthenticated) {
     navigate(redirectTo, { replace: true });
@@ -174,11 +197,4 @@ export function LoginPage() {
       </p>
     </section>
   );
-}
-
-function formatAuthError(error: unknown): string {
-  if (error instanceof Error) {
-    return error.message;
-  }
-  return 'Authentication failed. Try again.';
 }

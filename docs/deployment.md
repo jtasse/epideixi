@@ -136,6 +136,12 @@ Repo link in the message comes from template parameter `GitHubRepositoryUrl` (de
 
 Redeploy after any template or SSM change: `.\scripts\deploy.ps1`.
 
+### Duplicate email (Google vs password)
+
+A **Pre Sign-up** Lambda (`apps/cognito-triggers/pre-signup`) blocks creating a second Cognito user when the same email is already registered via Google or email/password. The SPA shows: *An account associated with this email already exists. Sign in with your existing method instead.*
+
+Deploy stack updates so the trigger is attached to the user pool (`.\scripts\deploy.ps1`).
+
 ## RDS master password (optional)
 
 When `DeployDatabase=true`, the RDS master password is read from SSM SecureString parameter `epideixi_db_password` (name overridable via `DatabaseMasterPasswordSsmName`). No script change required for that path.
