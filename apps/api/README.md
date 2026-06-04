@@ -2,6 +2,37 @@
 
 ASP.NET Core Web API with **PostgreSQL** (Entity Framework Core), **Amazon Cognito** JWT authentication, and optional deployment to **AWS Lambda** via SAM. Runs locally with Kestrel or behind API Gateway HTTP API.
 
+## Federated sign-in and sign-up (Google)
+
+The React app uses **Sign in with Google** (OAuth 2.0 authorization code + PKCE via Amplify). The API does not participate in login; it only **validates JWTs** on protected routes. For Google users, **first sign-in and return visits use the same flow** — Cognito creates a federated user in the user pool on first successful Google authentication (no separate registration API).
+
+```mermaid
+sequenceDiagram
+    actor User as User (browser)
+    participant SPA as React SPA
+    participant Cognito as Cognito Hosted UI
+    participant Google as Google OAuth
+    participant ApiGw as API Gateway
+    participant Api as Lambda API
+
+    User->>SPA: Continue with Google
+    SPA->>Cognito: GET /oauth2/authorize (client_id, redirect_uri, PKCE, identity_provider=Google)
+    Cognito->>Google: Redirect to Google consent / sign-in
+    User->>Google: Authenticate (Google-hosted UI)
+    Google->>Cognito: Redirect to /oauth2/idpresponse
+    Note over Cognito: First visit: create/link federated user in user pool
+    Cognito->>SPA: Redirect to /auth/callback?code=...
+    SPA->>Cognito: Exchange code for tokens (access, id, refresh)
+    Cognito-->>SPA: JWTs (stored in browser)
+    User->>SPA: Open protected route / call API
+    SPA->>ApiGw: HTTPS request Authorization Bearer access_token
+    ApiGw->>Api: Invoke with JWT
+    Note over Api: Validate issuer, signature, lifetime, app client (client_id / aud)
+    Api-->>SPA: 200 + JSON (or 401 if invalid/expired)
+```
+
+Google OAuth credentials are configured on the Cognito identity provider at deploy time ([docs/deployment.md](../../docs/deployment.md)). The API expects `Cognito:Authority` (user pool issuer) and `Cognito:Audience` (app client ID) to match those tokens.
+
 ## Prerequisites
 
 - [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0) (matches Lambda `dotnet8` runtime; repo `global.json` pins SDK 8)

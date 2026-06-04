@@ -100,6 +100,24 @@ Detailed docs: **[apps/api/README.md](apps/api/README.md)**.
 | AWS DB | Optional RDS via SAM (`DeployDatabase=true`); API connects with **IAM DB auth** |
 | Migrations | `dotnet ef` or `Database__ApplyMigrations=true` on startup (local dev) |
 
+## High-level authentication flow
+
+How an external user (for example **Sign in with Google**) reaches protected API routes. Email/password sign-in uses Cognito directly (no Google step); JWT validation on the API is the same afterward.
+
+```mermaid
+graph LR
+    A[Browser / React SPA] -->|1. OAuth redirect| B[Cognito Hosted UI]
+    B -->|2. Federated sign-in| C[Google]
+    C -->|3. IdP callback| B
+    B -->|4. Auth code to /auth/callback| A
+    A -->|5. HTTPS + Bearer JWT| D[API Gateway]
+    D --> E[Lambda API .NET 8]
+    E -->|6. Validate JWT vs user pool| B
+    E -->|7. Read / write| F[(PostgreSQL)]
+```
+
+On first Google sign-in, Cognito **provisions** the user in the user pool; later visits repeat steps 1–5. The API checks the access or ID token on each request (signature and issuer from Cognito JWKS; `client_id` / `aud` must match the app client). Hosted UI, Google IdP, and CORS origins are defined in [template.yaml](template.yaml); the SPA is deployed separately ([docs/hosting-amplify.md](docs/hosting-amplify.md)).
+
 ## Deploy to AWS (SAM)
 
 1. Copy and edit SAM config:
