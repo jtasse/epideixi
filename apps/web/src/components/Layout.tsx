@@ -1,5 +1,6 @@
 import { NavLink, Outlet } from 'react-router-dom';
 import { useAuth } from '@/auth/useAuth';
+import { ThemePicker } from '@/components/ThemePicker';
 
 export function Layout() {
   const { user, isAuthenticated, isLoading, signOutUser } = useAuth();
@@ -18,6 +19,7 @@ export function Layout() {
           )}
         </nav>
         <div className="app-user">
+          <ThemePicker />
           {isLoading && <span className="muted">…</span>}
           {!isLoading && isAuthenticated && user && (
             <>
