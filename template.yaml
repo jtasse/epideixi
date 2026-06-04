@@ -61,9 +61,31 @@ Parameters:
     Default: iam_api
     Description: PostgreSQL role that uses RDS IAM authentication (rds_iam)
 
+  GitHubRepositoryUrl:
+    Type: String
+    Default: https://github.com/jtasse/epideixi
+    Description: Shown in Cognito sign-up verification emails so users know what they signed up for.
+
+  CognitoSesSourceArn:
+    Type: String
+    Default: ''
+    Description: >-
+      ARN of a verified SES email or domain (same region as the stack). When set with
+      CognitoEmailFrom, Cognito sends mail via SES instead of no-reply@verificationemail.com.
+
+  CognitoEmailFrom:
+    Type: String
+    Default: ''
+    Description: >-
+      From header when using SES, e.g. Epideixi <noreply@yourdomain.com>. Required when
+      CognitoSesSourceArn is set. Set both via SSM; see docs/deployment.md.
+
 Conditions:
   DeployDatabase: !Equals [!Ref DeployDatabase, 'true']
   HasSpaOrigin: !Not [!Equals [!Ref SpaAllowedOrigin, '']]
+  UseSesForEmail: !And
+    - !Not [!Equals [!Ref CognitoSesSourceArn, '']]
+    - !Not [!Equals [!Ref CognitoEmailFrom, '']]
 
 Globals:
   Function:
@@ -88,6 +110,29 @@ Resources:
           RequireNumbers: true
           RequireSymbols: false
           RequireUppercase: true
+      EmailConfiguration:
+        EmailSendingAccount: !If [UseSesForEmail, DEVELOPER, COGNITO_DEFAULT]
+        SourceArn: !If [UseSesForEmail, !Ref CognitoSesSourceArn, !Ref AWS::NoValue]
+        From: !If [UseSesForEmail, !Ref CognitoEmailFrom, !Ref AWS::NoValue]
+      VerificationMessageTemplate:
+        DefaultEmailOption: CONFIRM_WITH_CODE
+        EmailSubject: Confirm your Epideixi account
+        EmailMessage: !If
+          - UseSesForEmail
+          - !Sub
+            - >-
+              <html><body style="font-family:sans-serif;line-height:1.5;color:#222;max-width:36em;">
+              <p>Welcome to <strong>Epideixi</strong>.</p>
+              <p>Your confirmation code is <strong style="font-size:1.25em;letter-spacing:0.05em;">{####}</strong>.<br>
+              Enter it in the app to finish signing up.</p>
+              <p>Epideixi is a demo app (React SPA, Cognito, and a serverless .NET API on Lambda).<br>
+              Project repository: <a href="${Repo}">${Repo}</a></p>
+              <p style="color:#666;font-size:0.95em;">If you did not sign up, you can ignore this email.</p>
+              </body></html>
+            - Repo: !Ref GitHubRepositoryUrl
+          - !Sub
+            - "Welcome to Epideixi.\r\n\r\nYour confirmation code is {####}. Enter it in the app to finish signing up.\r\n\r\nEpideixi is a demo app (React SPA, Cognito, and a serverless .NET API on Lambda).\r\nProject repository: ${Repo}\r\n\r\nIf you did not sign up, you can ignore this email."
+            - Repo: !Ref GitHubRepositoryUrl
 
   UserPoolDomain:
     Type: AWS::Cognito::UserPoolDomain

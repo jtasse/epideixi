@@ -35,6 +35,7 @@ We chose **SSM SecureString + wrapper** so Google sign-in stays encrypted in Par
 2. Calls `aws ssm get-parameter --with-decryption` for:
    - `epideixi_google_client_id` (default name)
    - `epideixi_google_client_secret` (default name)
+   - Optionally `epideixi_cognito_ses_source_arn` and `epideixi_cognito_email_from` (both required to enable SES mail)
 3. Unless `-SkipBuild` is set, runs `sam build`.
 4. Runs `sam deploy` with:
 
@@ -51,6 +52,7 @@ We chose **SSM SecureString + wrapper** so Google sign-in stays encrypted in Par
 | `-SkipBuild` | Deploy only; skip `sam build` |
 | `-Region us-west-2` | Override region for SSM reads |
 | `-GoogleClientIdSsmName` / `-GoogleClientSecretSsmName` | Non-default SSM parameter names |
+| `-CognitoSesSourceArnSsmName` / `-CognitoEmailFromSsmName` | Optional SES parameters for Cognito email (see below) |
 | `-ExtraParameterOverrides 'DeployDatabase=true'` | Merged with Google overrides (e.g. enable RDS) |
 | Extra args after `--` | Forwarded to `sam deploy` (e.g. `--no-confirm-changeset`) — do not pass a second `--parameter-overrides` here |
 
@@ -102,6 +104,38 @@ Rotating credentials: update the SSM parameters, then run `.\scripts\deploy.ps1`
 
 Only **Google OAuth → Cognito IdP** needs the wrapper bridge.
 
+### Email sign-up verification
+
+Gmail and other providers often mark Cognito’s built-in sender (`no-reply@verificationemail.com`) as spam. **Use Amazon SES** in the **same region** as the stack so Cognito sends as `DEVELOPER` with your verified address and an HTML template (paragraphs, code emphasis, repo link).
+
+#### One-time SES setup (recommended)
+
+1. Open **Amazon SES** in the deploy region (e.g. `us-east-1`).
+2. **Verify an identity** — a **domain** (best: enable DKIM on the domain) or a single **email** you control.
+3. If the account is still in the **SES sandbox**, you can only send to verified addresses until you [request production access](https://docs.aws.amazon.com/ses/latest/dg/request-production-access.html).
+4. Note the identity **ARN**, for example:
+   - Email: `arn:aws:ses:us-east-1:123456789012:identity/you@example.com`
+   - Domain: `arn:aws:ses:us-east-1:123456789012:identity/example.com`
+5. Store two **SSM parameters** (String or SecureString):
+
+   | Parameter | Example value |
+   |-----------|----------------|
+   | `epideixi_cognito_ses_source_arn` | ARN from step 4 |
+   | `epideixi_cognito_email_from` | `Epideixi <noreply@example.com>` (must use the verified address or a subdomain of a verified domain) |
+
+   ```powershell
+   aws ssm put-parameter --name epideixi_cognito_ses_source_arn --type String --value "arn:aws:ses:us-east-1:ACCOUNT:identity/example.com" --overwrite
+   aws ssm put-parameter --name epideixi_cognito_email_from --type String --value "Epideixi <noreply@example.com>" --overwrite
+   ```
+
+6. Redeploy: `.\scripts\deploy.ps1` (the script passes `CognitoSesSourceArn` and `CognitoEmailFrom` when both SSM values exist).
+
+Without those parameters, the stack keeps `COGNITO_DEFAULT` (limited volume, spam-prone sender). The fallback body uses `\r\n` line breaks; many clients still collapse them — **SES + HTML** is what fixes layout.
+
+Repo link in the message comes from template parameter `GitHubRepositoryUrl` (default `https://github.com/jtasse/epideixi`).
+
+Redeploy after any template or SSM change: `.\scripts\deploy.ps1`.
+
 ## RDS master password (optional)
 
 When `DeployDatabase=true`, the RDS master password is read from SSM SecureString parameter `epideixi_db_password` (name overridable via `DatabaseMasterPasswordSsmName`). No script change required for that path.
@@ -136,7 +170,10 @@ CI builds and tests only; it does not deploy. A pipeline would mirror the wrappe
 | Script: SSM parameters missing | Create `epideixi_google_client_id` / `_secret` in the same region as deploy |
 | Deploy OK, Google `invalid_client` | SSM values must match Google Console; redirect URI must be `.../oauth2/idpresponse` |
 | Cognito Hosted UI `invalid_request` | Stale `VITE_COGNITO_USER_POOL_CLIENT_ID` in `apps/web/.env` — refresh **CognitoUserPoolClientId** output |
+| Verification email in spam / one long line | Configure SES SSM parameters above and redeploy; mark one message “Not spam” only helps your mailbox |
+| SES deploy error on User Pool | `From` must match verified identity; SES region must match stack region |
 | `sam deploy` not using your config | Run from repo root; ensure `samconfig.toml` exists |
+| `sam build` / SDK **8.0.100** not found | .NET 8 may be in `%USERPROFILE%\AppData\Local\Microsoft\dotnet` but not on PATH — run `.\dotnet-install.ps1 -Channel 8.0`, or `winget install Microsoft.DotNet.SDK.8`; `deploy.ps1` prepends the user-local SDK when present |
 
 Web app details: [apps/web/README.md](../apps/web/README.md).
 

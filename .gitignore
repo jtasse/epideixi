@@ -19,3 +19,4 @@ obj/
 samconfig.toml
 .sam-deploy-overrides.yaml
 apps/api/local-env.json
+scripts/delete-cognito-user.ps1
