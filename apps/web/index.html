@@ -3,7 +3,21 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="light dark" />
     <title>Epideixi</title>
+    <script>
+      (function () {
+        var key = 'epideixi-theme';
+        var pref = localStorage.getItem(key) || 'system';
+        if (pref !== 'light' && pref !== 'dark' && pref !== 'system') pref = 'system';
+        var dark =
+          pref === 'dark' ||
+          (pref === 'system' &&
+            window.matchMedia('(prefers-color-scheme: dark)').matches);
+        document.documentElement.dataset.themePreference = pref;
+        document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>
