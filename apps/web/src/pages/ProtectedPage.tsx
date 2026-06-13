@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
   createNote,
+  deleteNote,
+  displayNoteTitle,
   listNotes,
   updateNote,
   type NoteDto,
@@ -8,6 +10,7 @@ import {
   NOTES_PAGE_SIZE,
 } from '@/api/notes';
 import { CancelNoteDialog } from '@/components/CancelNoteDialog';
+import { DeleteNoteDialog } from '@/components/DeleteNoteDialog';
 import { NotesList } from '@/components/NotesList';
 
 export function ProtectedPage() {
@@ -18,6 +21,7 @@ export function ProtectedPage() {
   const [isDirty, setIsDirty] = useState(false);
   const [pending, setPending] = useState(false);
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<NoteDto | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -107,6 +111,65 @@ export function ProtectedPage() {
     setCancelDialogOpen(true);
   }
 
+  function openDeleteDialog(note: NoteDto) {
+    setDeleteTarget(note);
+    setError(null);
+  }
+
+  function closeDeleteDialog() {
+    setDeleteTarget(null);
+  }
+
+  function handleDeleteFromEditor() {
+    if (!editingNoteId) {
+      return;
+    }
+
+    openDeleteDialog({
+      id: editingNoteId,
+      title,
+      content,
+      createdAt: '',
+      updatedAt: '',
+    });
+  }
+
+  async function handleConfirmDelete() {
+    if (!deleteTarget || pending) {
+      return;
+    }
+
+    setPending(true);
+    setError(null);
+
+    try {
+      await deleteNote(deleteTarget.id);
+
+      const remaining = totalCount - 1;
+      const maxPage = Math.max(1, Math.ceil(remaining / NOTES_PAGE_SIZE));
+      const deletedTitle = displayNoteTitle(deleteTarget.title);
+      const deletingFromEditor =
+        editorOpen && editingNoteId === deleteTarget.id;
+
+      closeDeleteDialog();
+      if (deletingFromEditor) {
+        closeEditor();
+      }
+
+      if (page > maxPage) {
+        setPage(maxPage);
+      } else if (!deletingFromEditor) {
+        await loadNotes();
+      }
+
+      setMessage(`"${deletedTitle}" was deleted.`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not delete note.');
+    } finally {
+      setPending(false);
+    }
+  }
+
   async function saveNote(): Promise<NoteDto | undefined> {
     if (!isDirty) {
       return undefined;
@@ -190,7 +253,7 @@ export function ProtectedPage() {
               onClick={handleCancel}
               disabled={pending}
             >
-              Cancel
+              Go Back / Cancel
             </button>
             <button
               type="button"
@@ -198,7 +261,7 @@ export function ProtectedPage() {
               onClick={() => void handleSave()}
               disabled={saveDisabled}
             >
-              Save
+              Save Note
             </button>
           </div>
         )}
@@ -216,31 +279,45 @@ export function ProtectedPage() {
       )}
 
       {editorOpen && (
-        <div className="note-editor-fields">
-          <label className="note-editor">
-            <span className="note-editor-label">Title</span>
-            <input
-              className="note-editor-title"
-              type="text"
-              value={title}
-              onChange={(event) => handleTitleChange(event.target.value)}
-              placeholder="Note title"
-              maxLength={200}
-              disabled={pending}
-            />
-          </label>
-          <label className="note-editor">
-            <span className="note-editor-label">Content</span>
-            <textarea
-              className="note-editor-input"
-              value={content}
-              onChange={(event) => handleContentChange(event.target.value)}
-              rows={12}
-              placeholder="Start writing…"
-              disabled={pending}
-            />
-          </label>
-        </div>
+        <>
+          <div className="note-editor-fields">
+            <label className="note-editor">
+              <span className="note-editor-label">Title</span>
+              <input
+                className="note-editor-title"
+                type="text"
+                value={title}
+                onChange={(event) => handleTitleChange(event.target.value)}
+                placeholder="Note title"
+                maxLength={200}
+                disabled={pending}
+              />
+            </label>
+            <label className="note-editor">
+              <span className="note-editor-label">Content</span>
+              <textarea
+                className="note-editor-input"
+                value={content}
+                onChange={(event) => handleContentChange(event.target.value)}
+                rows={12}
+                placeholder="Start writing…"
+                disabled={pending}
+              />
+            </label>
+          </div>
+          {editingNoteId && (
+            <div className="note-editor-footer">
+              <button
+                type="button"
+                className="btn btn-danger"
+                onClick={handleDeleteFromEditor}
+                disabled={pending}
+              >
+                Delete Note
+              </button>
+            </div>
+          )}
+        </>
       )}
 
       {!editorOpen && (
@@ -256,6 +333,7 @@ export function ProtectedPage() {
             onSortChange={handleSortChange}
             onPageChange={setPage}
             onViewEdit={openEditorForNote}
+            onDelete={openDeleteDialog}
           />
         </>
       )}
@@ -269,6 +347,14 @@ export function ProtectedPage() {
         onSaveAndExit={() => void handleSaveAndExit()}
         onDiscardAndExit={handleDiscardAndExit}
         onReturn={handleReturnToNote}
+      />
+
+      <DeleteNoteDialog
+        open={deleteTarget !== null}
+        noteTitle={displayNoteTitle(deleteTarget?.title ?? '')}
+        pending={pending}
+        onConfirm={() => void handleConfirmDelete()}
+        onCancel={closeDeleteDialog}
       />
     </section>
   );

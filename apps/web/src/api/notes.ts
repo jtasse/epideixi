@@ -136,6 +136,18 @@ export async function updateNote(
   return body.data;
 }
 
+export async function deleteNote(id: string): Promise<void> {
+  const token = await getAccessToken();
+  const response = await fetch(`${env.apiBaseUrl}/api/notes/${id}`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
+  if (!response.ok) {
+    throw new Error(`Could not delete note (${response.status}).`);
+  }
+}
+
 export function displayNoteTitle(title: string): string {
   const trimmed = title.trim();
   return trimmed || 'Untitled';

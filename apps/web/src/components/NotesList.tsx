@@ -16,6 +16,7 @@ type NotesListProps = {
   onSortChange: (sort: NoteSortOption) => void;
   onPageChange: (page: number) => void;
   onViewEdit: (note: NoteDto) => void;
+  onDelete: (note: NoteDto) => void;
 };
 
 const sortOptions: { value: NoteSortOption; label: string }[] = [
@@ -35,6 +36,7 @@ export function NotesList({
   onSortChange,
   onPageChange,
   onViewEdit,
+  onDelete,
 }: NotesListProps) {
   const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
   const hasPrevious = page > 1;
@@ -95,6 +97,13 @@ export function NotesList({
                   onClick={() => onViewEdit(note)}
                 >
                   View/Edit
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-danger note-tile-action-btn"
+                  onClick={() => onDelete(note)}
+                >
+                  Delete Note
                 </button>
               </div>
             </li>

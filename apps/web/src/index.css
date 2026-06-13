@@ -233,6 +233,17 @@ code {
   font-size: 0.875rem;
 }
 
+.btn-danger {
+  background: var(--color-error-bg);
+  border-color: var(--color-error-text);
+  color: var(--color-error-text);
+  width: auto;
+}
+
+.btn-danger:hover:not(:disabled) {
+  filter: brightness(0.95);
+}
+
 .link-button {
   font: inherit;
   color: var(--color-link);
@@ -348,6 +359,10 @@ code {
   margin-bottom: 1rem;
 }
 
+.note-editor-footer {
+  margin-bottom: 1rem;
+}
+
 .note-editor-title {
   font: inherit;
   width: 100%;
@@ -427,8 +442,10 @@ code {
   position: absolute;
   inset: 0;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 0.5rem;
   background: color-mix(in srgb, var(--color-surface) 82%, transparent);
   opacity: 0;
   transition: opacity 0.15s ease;

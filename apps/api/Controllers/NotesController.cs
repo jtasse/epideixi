@@ -181,6 +181,36 @@ public sealed class NotesController : ControllerBase
         return Ok(ApiResponse<NoteDto>.Create(dto, HttpContext.TraceIdentifier));
     }
 
+    [HttpDelete("{id:guid}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> Delete(
+        Guid id,
+        CancellationToken cancellationToken)
+    {
+        var ownerUserId = GetOwnerUserId();
+        if (ownerUserId is null)
+        {
+            return Unauthorized();
+        }
+
+        var entity = await _db.Notes
+            .FirstOrDefaultAsync(
+                n => n.Id == id && n.OwnerUserId == ownerUserId,
+                cancellationToken);
+
+        if (entity is null)
+        {
+            return NotFound();
+        }
+
+        _db.Notes.Remove(entity);
+        await _db.SaveChangesAsync(cancellationToken);
+
+        return NoContent();
+    }
+
     private static IQueryable<Note> ApplySort(
         IQueryable<Note> query,
         string sortBy,
