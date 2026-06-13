@@ -27,11 +27,11 @@ export function CancelNoteDialog({
         onClick={(event) => event.stopPropagation()}
       >
         <h2 id="cancel-note-dialog-title" className="dialog-title">
-          Cancel note creation?
+          Unsaved changes
         </h2>
         <p className="dialog-body">
-          You have unsaved work on this note. Choose whether to save, discard, or
-          keep editing.
+          You have unsaved changes on this note. Choose whether to save,
+          discard, or keep editing.
         </p>
         <div className="dialog-actions">
           <button

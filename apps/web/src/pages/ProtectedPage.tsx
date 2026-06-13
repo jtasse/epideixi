@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import {
   createNote,
   listNotes,
+  updateNote,
   type NoteDto,
   type NoteSortOption,
   NOTES_PAGE_SIZE,
@@ -11,6 +12,7 @@ import { NotesList } from '@/components/NotesList';
 
 export function ProtectedPage() {
   const [editorOpen, setEditorOpen] = useState(false);
+  const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [isDirty, setIsDirty] = useState(false);
@@ -51,8 +53,19 @@ export function ProtectedPage() {
 
   function openEditor() {
     setEditorOpen(true);
+    setEditingNoteId(null);
     setTitle('');
     setContent('');
+    setIsDirty(false);
+    setMessage(null);
+    setError(null);
+  }
+
+  function openEditorForNote(note: NoteDto) {
+    setEditorOpen(true);
+    setEditingNoteId(note.id);
+    setTitle(note.title);
+    setContent(note.content);
     setIsDirty(false);
     setMessage(null);
     setError(null);
@@ -76,6 +89,7 @@ export function ProtectedPage() {
 
   function closeEditor() {
     setEditorOpen(false);
+    setEditingNoteId(null);
     setTitle('');
     setContent('');
     setIsDirty(false);
@@ -114,9 +128,13 @@ export function ProtectedPage() {
     setError(null);
 
     try {
-      const note = await createNote(trimmedTitle, trimmedContent);
+      const note = editingNoteId
+        ? await updateNote(editingNoteId, trimmedTitle, trimmedContent)
+        : await createNote(trimmedTitle, trimmedContent);
       setIsDirty(false);
-      setPage(1);
+      if (!editingNoteId) {
+        setPage(1);
+      }
       return note;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not save note.');
@@ -164,18 +182,8 @@ export function ProtectedPage() {
     <section className="page notes-page">
       <header className="notes-header">
         <h1>My Notes</h1>
-        <div className="notes-toolbar">
-          {!editorOpen && (
-            <button
-              type="button"
-              className="btn btn-ghost"
-              onClick={openEditor}
-              disabled={pending}
-            >
-              Create
-            </button>
-          )}
-          {editorOpen && (
+        {editorOpen && (
+          <div className="notes-toolbar">
             <button
               type="button"
               className="btn btn-ghost"
@@ -184,16 +192,16 @@ export function ProtectedPage() {
             >
               Cancel
             </button>
-          )}
-          <button
-            type="button"
-            className="btn btn-primary notes-save-btn"
-            onClick={() => void handleSave()}
-            disabled={saveDisabled}
-          >
-            Save
-          </button>
-        </div>
+            <button
+              type="button"
+              className="btn btn-primary notes-save-btn"
+              onClick={() => void handleSave()}
+              disabled={saveDisabled}
+            >
+              Save
+            </button>
+          </div>
+        )}
       </header>
 
       {!editorOpen && (
@@ -247,6 +255,7 @@ export function ProtectedPage() {
             loading={listLoading}
             onSortChange={handleSortChange}
             onPageChange={setPage}
+            onViewEdit={openEditorForNote}
           />
         </>
       )}

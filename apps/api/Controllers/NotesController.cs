@@ -105,6 +105,82 @@ public sealed class NotesController : ControllerBase
             ApiResponse<NoteDto>.Create(dto, HttpContext.TraceIdentifier));
     }
 
+    [HttpGet("{id:guid}")]
+    [ProducesResponseType(typeof(ApiResponse<NoteDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<ActionResult<ApiResponse<NoteDto>>> Get(
+        Guid id,
+        CancellationToken cancellationToken)
+    {
+        var ownerUserId = GetOwnerUserId();
+        if (ownerUserId is null)
+        {
+            return Unauthorized();
+        }
+
+        var note = await _db.Notes
+            .AsNoTracking()
+            .Where(n => n.Id == id && n.OwnerUserId == ownerUserId)
+            .Select(n => new NoteDto(n.Id, n.Title, n.Content, n.CreatedAt, n.UpdatedAt))
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (note is null)
+        {
+            return NotFound();
+        }
+
+        return Ok(ApiResponse<NoteDto>.Create(note, HttpContext.TraceIdentifier));
+    }
+
+    [HttpPut("{id:guid}")]
+    [ProducesResponseType(typeof(ApiResponse<NoteDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<ActionResult<ApiResponse<NoteDto>>> Update(
+        Guid id,
+        [FromBody] UpdateNoteRequest request,
+        CancellationToken cancellationToken)
+    {
+        var ownerUserId = GetOwnerUserId();
+        if (ownerUserId is null)
+        {
+            return Unauthorized();
+        }
+
+        var title = request.Title.Trim();
+        var content = request.Content.Trim();
+        if (string.IsNullOrEmpty(title))
+        {
+            return BadRequest();
+        }
+
+        var entity = await _db.Notes
+            .FirstOrDefaultAsync(
+                n => n.Id == id && n.OwnerUserId == ownerUserId,
+                cancellationToken);
+
+        if (entity is null)
+        {
+            return NotFound();
+        }
+
+        entity.Title = title;
+        entity.Content = content;
+        entity.UpdatedAt = DateTimeOffset.UtcNow;
+
+        await _db.SaveChangesAsync(cancellationToken);
+
+        var dto = new NoteDto(
+            entity.Id,
+            entity.Title,
+            entity.Content,
+            entity.CreatedAt,
+            entity.UpdatedAt);
+        return Ok(ApiResponse<NoteDto>.Create(dto, HttpContext.TraceIdentifier));
+    }
+
     private static IQueryable<Note> ApplySort(
         IQueryable<Note> query,
         string sortBy,

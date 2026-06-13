@@ -15,6 +15,7 @@ type NotesListProps = {
   loading: boolean;
   onSortChange: (sort: NoteSortOption) => void;
   onPageChange: (page: number) => void;
+  onViewEdit: (note: NoteDto) => void;
 };
 
 const sortOptions: { value: NoteSortOption; label: string }[] = [
@@ -33,6 +34,7 @@ export function NotesList({
   loading,
   onSortChange,
   onPageChange,
+  onViewEdit,
 }: NotesListProps) {
   const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
   const hasPrevious = page > 1;
@@ -77,13 +79,24 @@ export function NotesList({
         <ul className="notes-grid">
           {notes.map((note) => (
             <li key={note.id} className="note-tile">
-              <h2 className="note-tile-title">
-                {displayNoteTitle(note.title)}
-              </h2>
-              <p className="note-tile-date muted">
-                {formatNoteDate(note.createdAt)}
-              </p>
-              <p className="note-tile-preview">{notePreview(note.content)}</p>
+              <div className="note-tile-body">
+                <h2 className="note-tile-title">
+                  {displayNoteTitle(note.title)}
+                </h2>
+                <p className="note-tile-date muted">
+                  {formatNoteDate(note.createdAt)}
+                </p>
+                <p className="note-tile-preview">{notePreview(note.content)}</p>
+              </div>
+              <div className="note-tile-actions">
+                <button
+                  type="button"
+                  className="btn btn-primary note-tile-action-btn"
+                  onClick={() => onViewEdit(note)}
+                >
+                  View/Edit
+                </button>
+              </div>
             </li>
           ))}
         </ul>

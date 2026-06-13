@@ -24,3 +24,13 @@ public sealed class CreateNoteRequest
     [MaxLength(10000)]
     public string Content { get; init; } = string.Empty;
 }
+
+public sealed class UpdateNoteRequest
+{
+    [Required]
+    [MaxLength(200)]
+    public string Title { get; init; } = string.Empty;
+
+    [MaxLength(10000)]
+    public string Content { get; init; } = string.Empty;
+}

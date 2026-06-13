@@ -99,6 +99,43 @@ export async function createNote(
   return body.data;
 }
 
+export async function getNote(id: string): Promise<NoteDto> {
+  const token = await getAccessToken();
+  const response = await fetch(`${env.apiBaseUrl}/api/notes/${id}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
+  if (!response.ok) {
+    throw new Error(`Could not load note (${response.status}).`);
+  }
+
+  const body = (await response.json()) as ApiResponse<NoteDto>;
+  return body.data;
+}
+
+export async function updateNote(
+  id: string,
+  title: string,
+  content: string,
+): Promise<NoteDto> {
+  const token = await getAccessToken();
+  const response = await fetch(`${env.apiBaseUrl}/api/notes/${id}`, {
+    method: 'PUT',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ title, content }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Could not save note (${response.status}).`);
+  }
+
+  const body = (await response.json()) as ApiResponse<NoteDto>;
+  return body.data;
+}
+
 export function displayNoteTitle(title: string): string {
   const trimmed = title.trim();
   return trimmed || 'Untitled';

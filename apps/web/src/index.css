@@ -407,6 +407,7 @@ code {
 }
 
 .note-tile {
+  position: relative;
   display: grid;
   gap: 0.5rem;
   padding: 1rem;
@@ -414,6 +415,36 @@ code {
   border-radius: 0.5rem;
   background: var(--color-surface);
   min-height: 9rem;
+  overflow: hidden;
+}
+
+.note-tile-body {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.note-tile-actions {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in srgb, var(--color-surface) 82%, transparent);
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+.note-tile:hover .note-tile-actions,
+.note-tile:focus-within .note-tile-actions {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.note-tile-action-btn {
+  width: auto;
+  min-width: 7rem;
 }
 
 .note-tile-title {
