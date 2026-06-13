@@ -29,6 +29,7 @@ public sealed class AppDbContext : DbContext
             entity.ToTable("notes");
             entity.HasKey(n => n.Id);
             entity.Property(n => n.OwnerUserId).HasMaxLength(128).IsRequired();
+            entity.Property(n => n.Title).HasMaxLength(200).IsRequired();
             entity.Property(n => n.Content).HasMaxLength(10000).IsRequired();
             entity.HasIndex(n => n.OwnerUserId);
         });
