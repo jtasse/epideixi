@@ -46,7 +46,7 @@ export function HomePage() {
       </dl>
 
       <p>
-        <Link to="/protected">Protected page</Link>
+        <Link to="/protected">My Notes</Link>
       </p>
     </section>
   );

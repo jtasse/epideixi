@@ -13,7 +13,7 @@ export function Layout() {
           <NavLink to="/" end>
             Home
           </NavLink>
-          <NavLink to="/protected">Protected</NavLink>
+          <NavLink to="/protected">My Notes</NavLink>
           {!isLoading && !isAuthenticated && (
             <NavLink to="/login">Sign in</NavLink>
           )}

@@ -1,76 +1,167 @@
-import { useEffect, useState } from 'react';
-import { fetchAuthSession } from 'aws-amplify/auth';
-import { useAuth } from '@/auth/useAuth';
-import { env } from '@/config/env';
+import { useState } from 'react';
+import { createNote } from '@/api/notes';
+import { CancelNoteDialog } from '@/components/CancelNoteDialog';
 
 export function ProtectedPage() {
-  const { user } = useAuth();
-  const [apiMessage, setApiMessage] = useState<string | null>(null);
-  const [apiError, setApiError] = useState<string | null>(null);
+  const [editorOpen, setEditorOpen] = useState(false);
+  const [content, setContent] = useState('');
+  const [isDirty, setIsDirty] = useState(false);
+  const [pending, setPending] = useState(false);
+  const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    let cancelled = false;
+  function openEditor() {
+    setEditorOpen(true);
+    setContent('');
+    setIsDirty(false);
+    setMessage(null);
+    setError(null);
+  }
 
-    (async () => {
-      try {
-        const session = await fetchAuthSession();
-        const token = session.tokens?.accessToken?.toString();
-        if (!token) {
-          setApiError('No access token available.');
-          return;
-        }
+  function handleContentChange(value: string) {
+    setContent(value);
+    setIsDirty(true);
+    setMessage(null);
+    setError(null);
+  }
 
-        const response = await fetch(`${env.apiBaseUrl}/api/sample`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+  function closeEditor() {
+    setEditorOpen(false);
+    setContent('');
+    setIsDirty(false);
+    setCancelDialogOpen(false);
+    setMessage(null);
+    setError(null);
+  }
 
-        if (!response.ok) {
-          setApiError(`API returned ${response.status}`);
-          return;
-        }
+  function handleCancel() {
+    if (!isDirty) {
+      closeEditor();
+      return;
+    }
 
-        const body = (await response.json()) as {
-          data?: { subject?: string; email?: string };
-        };
-        if (!cancelled) {
-          setApiMessage(
-            `API sample OK — subject: ${body.data?.subject ?? 'n/a'}, email: ${body.data?.email ?? 'n/a'}`,
-          );
-        }
-      } catch (err) {
-        if (!cancelled) {
-          setApiError(err instanceof Error ? err.message : 'API call failed.');
-        }
-      }
-    })();
+    setCancelDialogOpen(true);
+  }
 
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  async function saveNote(): Promise<boolean> {
+    if (!isDirty) {
+      return true;
+    }
+
+    if (pending) {
+      return false;
+    }
+
+    setPending(true);
+    setMessage(null);
+    setError(null);
+
+    try {
+      const note = await createNote(content);
+      setIsDirty(false);
+      setMessage(`Note saved (${note.id}).`);
+      return true;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not save note.');
+      return false;
+    } finally {
+      setPending(false);
+    }
+  }
+
+  async function handleSave() {
+    await saveNote();
+  }
+
+  async function handleSaveAndExit() {
+    const saved = await saveNote();
+    if (saved) {
+      closeEditor();
+    }
+  }
+
+  function handleDiscardAndExit() {
+    closeEditor();
+  }
+
+  function handleReturnToNote() {
+    setCancelDialogOpen(false);
+  }
+
+  const saveDisabled = !editorOpen || !isDirty || pending;
 
   return (
-    <section className="page">
-      <h1>Protected</h1>
-      <p>Only signed-in users can view this page. Your session persists across refreshes.</p>
-      <dl className="meta-list">
-        <div>
-          <dt>User ID</dt>
-          <dd>
-            <code>{user?.userId}</code>
-          </dd>
+    <section className="page notes-page">
+      <header className="notes-header">
+        <h1>My Notes</h1>
+        <div className="notes-toolbar">
+          {!editorOpen && (
+            <button
+              type="button"
+              className="btn btn-ghost"
+              onClick={openEditor}
+              disabled={pending}
+            >
+              Create
+            </button>
+          )}
+          {editorOpen && (
+            <button
+              type="button"
+              className="btn btn-ghost"
+              onClick={handleCancel}
+              disabled={pending}
+            >
+              Cancel
+            </button>
+          )}
+          <button
+            type="button"
+            className="btn btn-primary notes-save-btn"
+            onClick={() => void handleSave()}
+            disabled={saveDisabled}
+          >
+            Save
+          </button>
         </div>
-        <div>
-          <dt>Email</dt>
-          <dd>{user?.email ?? '—'}</dd>
-        </div>
-        <div>
-          <dt>Name</dt>
-          <dd>{user?.name ?? '—'}</dd>
-        </div>
-      </dl>
-      {apiMessage && <p className="message success">{apiMessage}</p>}
-      {apiError && <p className="message error">{apiError}</p>}
+      </header>
+
+      {!editorOpen && (
+        <button
+          type="button"
+          className="btn btn-primary notes-create-btn"
+          onClick={openEditor}
+          disabled={pending}
+        >
+          Create Note
+        </button>
+      )}
+
+      {editorOpen && (
+        <label className="note-editor">
+          <span className="note-editor-label">Note</span>
+          <textarea
+            className="note-editor-input"
+            value={content}
+            onChange={(event) => handleContentChange(event.target.value)}
+            rows={12}
+            placeholder="Start writing…"
+            disabled={pending}
+          />
+        </label>
+      )}
+
+      {message && <p className="message success">{message}</p>}
+      {error && <p className="message error">{error}</p>}
+
+      <CancelNoteDialog
+        open={cancelDialogOpen}
+        pending={pending}
+        onSaveAndExit={() => void handleSaveAndExit()}
+        onDiscardAndExit={handleDiscardAndExit}
+        onReturn={handleReturnToNote}
+      />
     </section>
   );
 }
