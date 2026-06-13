@@ -342,6 +342,113 @@ code {
   resize: vertical;
 }
 
+.note-editor-fields {
+  display: grid;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.note-editor-title {
+  font: inherit;
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--color-border-strong);
+  border-radius: 0.375rem;
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+
+.notes-list {
+  margin-top: 1.5rem;
+}
+
+.notes-list-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem 1rem;
+  margin-bottom: 1rem;
+}
+
+.notes-sort {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+}
+
+.notes-sort-label {
+  color: var(--color-muted);
+}
+
+.notes-sort-select {
+  font: inherit;
+  font-size: 0.875rem;
+  color: var(--color-label);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-strong);
+  border-radius: 0.375rem;
+  padding: 0.35rem 0.5rem;
+}
+
+.notes-list-meta {
+  margin: 0;
+  font-size: 0.875rem;
+}
+
+.notes-grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
+  gap: 1rem;
+}
+
+.note-tile {
+  display: grid;
+  gap: 0.5rem;
+  padding: 1rem;
+  border: 1px solid var(--color-border);
+  border-radius: 0.5rem;
+  background: var(--color-surface);
+  min-height: 9rem;
+}
+
+.note-tile-title {
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.3;
+  word-break: break-word;
+}
+
+.note-tile-date {
+  margin: 0;
+  font-size: 0.8125rem;
+}
+
+.note-tile-preview {
+  margin: 0;
+  font-size: 0.875rem;
+  line-height: 1.45;
+  color: var(--color-label);
+  word-break: break-word;
+}
+
+.notes-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  margin-top: 1.5rem;
+}
+
+.notes-pagination-status {
+  font-size: 0.875rem;
+  color: var(--color-muted);
+}
+
 .dialog-backdrop {
   position: fixed;
   inset: 0;

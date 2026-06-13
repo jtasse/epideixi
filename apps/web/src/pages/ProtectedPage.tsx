@@ -1,9 +1,17 @@
-import { useState } from 'react';
-import { createNote } from '@/api/notes';
+import { useCallback, useEffect, useState } from 'react';
+import {
+  createNote,
+  listNotes,
+  type NoteDto,
+  type NoteSortOption,
+  NOTES_PAGE_SIZE,
+} from '@/api/notes';
 import { CancelNoteDialog } from '@/components/CancelNoteDialog';
+import { NotesList } from '@/components/NotesList';
 
 export function ProtectedPage() {
   const [editorOpen, setEditorOpen] = useState(false);
+  const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [isDirty, setIsDirty] = useState(false);
   const [pending, setPending] = useState(false);
@@ -11,23 +19,64 @@ export function ProtectedPage() {
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const [notes, setNotes] = useState<NoteDto[]>([]);
+  const [page, setPage] = useState(1);
+  const [sort, setSort] = useState<NoteSortOption>('createdAt-desc');
+  const [totalCount, setTotalCount] = useState(0);
+  const [listLoading, setListLoading] = useState(true);
+  const [listError, setListError] = useState<string | null>(null);
+
+  const loadNotes = useCallback(async () => {
+    setListLoading(true);
+    setListError(null);
+
+    try {
+      const result = await listNotes(page, sort, NOTES_PAGE_SIZE);
+      setNotes(result.items);
+      setTotalCount(result.totalCount);
+    } catch (err) {
+      setListError(err instanceof Error ? err.message : 'Could not load notes.');
+      setNotes([]);
+      setTotalCount(0);
+    } finally {
+      setListLoading(false);
+    }
+  }, [page, sort]);
+
+  useEffect(() => {
+    if (!editorOpen) {
+      void loadNotes();
+    }
+  }, [editorOpen, loadNotes]);
+
   function openEditor() {
     setEditorOpen(true);
+    setTitle('');
     setContent('');
     setIsDirty(false);
     setMessage(null);
     setError(null);
   }
 
-  function handleContentChange(value: string) {
-    setContent(value);
+  function markDirty() {
     setIsDirty(true);
     setMessage(null);
     setError(null);
   }
 
+  function handleTitleChange(value: string) {
+    setTitle(value);
+    markDirty();
+  }
+
+  function handleContentChange(value: string) {
+    setContent(value);
+    markDirty();
+  }
+
   function closeEditor() {
     setEditorOpen(false);
+    setTitle('');
     setContent('');
     setIsDirty(false);
     setCancelDialogOpen(false);
@@ -44,13 +93,20 @@ export function ProtectedPage() {
     setCancelDialogOpen(true);
   }
 
-  async function saveNote(): Promise<boolean> {
+  async function saveNote(): Promise<NoteDto | undefined> {
     if (!isDirty) {
-      return true;
+      return undefined;
     }
 
     if (pending) {
-      return false;
+      return undefined;
+    }
+
+    const trimmedTitle = title.trim();
+    const trimmedContent = content.trim();
+    if (!trimmedTitle) {
+      setError('Title is required.');
+      return undefined;
     }
 
     setPending(true);
@@ -58,26 +114,33 @@ export function ProtectedPage() {
     setError(null);
 
     try {
-      const note = await createNote(content);
+      const note = await createNote(trimmedTitle, trimmedContent);
       setIsDirty(false);
-      setMessage(`Note saved (${note.id}).`);
-      return true;
+      setPage(1);
+      return note;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not save note.');
-      return false;
+      return undefined;
     } finally {
       setPending(false);
     }
   }
 
   async function handleSave() {
-    await saveNote();
+    const note = await saveNote();
+    if (!note) {
+      return;
+    }
+
+    closeEditor();
+    setMessage(`Note saved (${note.id}).`);
   }
 
   async function handleSaveAndExit() {
-    const saved = await saveNote();
-    if (saved) {
+    const note = await saveNote();
+    if (note) {
       closeEditor();
+      setMessage(`Note saved (${note.id}).`);
     }
   }
 
@@ -89,7 +152,13 @@ export function ProtectedPage() {
     setCancelDialogOpen(false);
   }
 
-  const saveDisabled = !editorOpen || !isDirty || pending;
+  function handleSortChange(nextSort: NoteSortOption) {
+    setSort(nextSort);
+    setPage(1);
+  }
+
+  const saveDisabled =
+    !editorOpen || !isDirty || pending || !title.trim();
 
   return (
     <section className="page notes-page">
@@ -139,17 +208,47 @@ export function ProtectedPage() {
       )}
 
       {editorOpen && (
-        <label className="note-editor">
-          <span className="note-editor-label">Note</span>
-          <textarea
-            className="note-editor-input"
-            value={content}
-            onChange={(event) => handleContentChange(event.target.value)}
-            rows={12}
-            placeholder="Start writing…"
-            disabled={pending}
+        <div className="note-editor-fields">
+          <label className="note-editor">
+            <span className="note-editor-label">Title</span>
+            <input
+              className="note-editor-title"
+              type="text"
+              value={title}
+              onChange={(event) => handleTitleChange(event.target.value)}
+              placeholder="Note title"
+              maxLength={200}
+              disabled={pending}
+            />
+          </label>
+          <label className="note-editor">
+            <span className="note-editor-label">Content</span>
+            <textarea
+              className="note-editor-input"
+              value={content}
+              onChange={(event) => handleContentChange(event.target.value)}
+              rows={12}
+              placeholder="Start writing…"
+              disabled={pending}
+            />
+          </label>
+        </div>
+      )}
+
+      {!editorOpen && (
+        <>
+          {listError && <p className="message error">{listError}</p>}
+          <NotesList
+            notes={notes}
+            page={page}
+            pageSize={NOTES_PAGE_SIZE}
+            totalCount={totalCount}
+            sort={sort}
+            loading={listLoading}
+            onSortChange={handleSortChange}
+            onPageChange={setPage}
           />
-        </label>
+        </>
       )}
 
       {message && <p className="message success">{message}</p>}
